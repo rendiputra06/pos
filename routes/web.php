@@ -14,6 +14,8 @@ use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\Api\PosApiController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -44,6 +46,12 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('categories', CategoryController::class);
     Route::resource('products', ProductController::class);
     Route::resource('services', ServiceController::class);
+
+    // POS Routes
+    Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
+    Route::get('/pos/receipt/{transaction}', [PosController::class, 'receipt'])->name('pos.receipt');
+    Route::get('/api/pos/search', [PosApiController::class, 'search'])->name('api.pos.search');
+    Route::post('/api/pos/transaction', [PosApiController::class, 'store'])->name('api.pos.store');
 });
 
 require __DIR__ . '/settings.php';

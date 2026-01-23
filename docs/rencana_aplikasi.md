@@ -57,51 +57,61 @@ Aplikasi POS yang dirancang khusus untuk kebutuhan toko Alat Tulis Kantor (ATK),
 
 ---
 
-## Rincian Pengembangan Fase 2: Master Data
+## Rincian Pengembangan Fase 2: Master Data (SELESAI)
 
-Fase ini bertujuan untuk membangun fondasi data produk dan jasa yang akan dikelola oleh sistem POS.
+Fase ini telah diimplementasikan sepenuhnya mencakup:
+1.  **Database Migration & Models:** Kategori, Produk, Jasa, dan Harga Bertingkat.
+2.  **Manajemen Kategori:** Pemisahan tipe Produk dan Jasa.
+3.  **Manajemen Produk (ATK):** CRUD lengkap dengan pelacakan stok.
+4.  **Manajemen Jasa:** CRUD dengan skema harga wholesale (bertingkat) yang fleksibel.
 
-### 1. Desain Database (Skema)
+---
 
-#### Tabel `categories`
+## Rincian Pengembangan Fase 3: Transaksi & POS (Point of Sale)
+
+Fase ini adalah inti dari aplikasi, tempat terjadinya proses jual beli barang dan jasa.
+
+### 1. Desain Database (Lanjutan)
+
+#### Tabel `transactions` (Header Transaksi)
 - `id`: Primary Key
-- `name`: Nama kategori (Contoh: Alat Tulis, Jasa Fotocopy, Seragam)
-- `slug`: URL friendly name
-- `type`: Enum (`product`, `service`) - Untuk membedakan input data.
+- `invoice_number`: Nomor struk unik (Contoh: INV-20240124-0001)
+- `user_id`: Kasir yang melayani
+- `customer_id`: Relasi ke pelanggan (opsional)
+- `total_amount`: Total belanja sebelum diskon
+- `discount`: Diskon transaksi (persen atau nominal)
+- `grand_total`: Total akhir yang dibayar
+- `payment_method`: Enum (`cash`, `qris`, `bank_transfer`)
+- `status`: Enum (`success`, `pending`, `canceled`)
+- `created_at`: Waktu transaksi
 
-#### Tabel `products` (Untuk ATK & Barang Fisik)
+#### Tabel `transaction_details` (Item Belanja)
 - `id`: Primary Key
-- `category_id`: Foreign Key ke `categories`
-- `name`: Nama barang (Contoh: Buku Sidu 38 Lembar)
-- `sku`: Kode stok unik
-- `barcode`: Scan code (opsional)
-- `cost_price`: Harga modal (untuk hitung laba)
-- `price`: Harga jual retail
-- `stock`: Jumlah ketersediaan
-- `unit`: Satuan (pcs, rim, lusin, pack)
-- `image`: Foto produk
+- `transaction_id`: Foreign Key ke `transactions`
+- `item_type`: Polymorphic relation (Product atau Service)
+- `item_id`: Target ID
+- `qty`: Jumlah beli
+- `price`: Harga satuan saat transaksi dilakukan (snapshot)
+- `subtotal`: `qty * price`
 
-#### Tabel `services` (Untuk Fotocopy, Print, Jilid)
-- `id`: Primary Key
-- `category_id`: Foreign Key ke `categories`
-- `name`: Nama jasa (Contoh: Fotocopy A4 H/P)
-- `base_price`: Harga dasar per lembar
+### 2. Fitur Antarmuka POS (UI)
 
-#### Tabel `service_price_levels` (Harga Bertingkat)
-- `id`: Primary Key
-- `service_id`: Foreign Key ke `services`
-- `min_qty`: Jumlah minimal (Contoh: 101)
-- `max_qty`: Jumlah maksimal (Contoh: 500)
-- `price`: Harga khusus (Contoh: Rp 200/lembar, jika normalnya Rp 500)
-
-### 2. Fitur Antarmuka (UI)
-
-- **Kategori:** List kategori dengan ikon lucide-react untuk visualisasi cepat.
-- **Produk:** Grid/Table view dengan filter stok rendah (highlight warna merah jika stok < 5).
-- **Jasa:** Form khusus yang memungkinkan penambahan baris "Harga Bertingkat" secara dinamis.
+- **Search & Scan:** Cari produk lewat nama atau SKU/Barcode.
+- **Service Shortcuts:** Panel tombol cepat untuk jasa populer (Fotocopy, Print).
+- **Cart Management:** Menambah/mengurang Qty, menghapus item, dan diskon item.
+- **Dynamic Pricing Display:** Notifikasi visual saat harga jasa turun (wholesale) karena jumlah lembar mencapai target.
+- **Payment Modal:** Pilihan metode pembayaran yang responsif dengan input uang kembalian (untuk tunai).
 
 ### 3. Logika Bisnis (Business Logic)
 
-- **Auto-Calculated Pricing:** Di kasir nanti, harga jasa akan otomatis berubah jika jumlah lembar melewati threshold `service_price_levels`.
-- **Stock Management:** Pengurangan stok otomatis saat transaksi (Barang Fisik), dan sistem peringatan jika sisa kertas HVS atau toner menipis (Jasa).
+- **Inventory Sync:** Stok barang ATK berkurang otomatis setiap transaksi berhasil.
+- **Price Level Logic:** Sistem secara otomatis lookup ke tabel `service_price_levels` saat jasa ditambahkan ke keranjang menyesuaikan kuantitas.
+- **Struk Generation:** Render halaman struk yang optimal untuk printer thermal (58mm/80mm).
+
+---
+
+## Rencana Fase Selanjutnya (Masa Depan)
+- **Fase 4:** Laporan Penjualan, Laba Rugi, & Dashboard Analytics Lanjutan.
+- **Fase 5:** Manajemen Pelanggan (Member) & Piutang (Khas toko kelontong/ATK Indonesia).
+- **Fase 6:** Pengeluaran Operasional (Gaji, Listrik, Sewa) & Backup Database Otomatis.
 

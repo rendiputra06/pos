@@ -48,6 +48,9 @@ class RolePermissionSeeder extends Seeder
                 'log-view',
                 'filemanager-view',
             ],
+            'POS' => [
+                'pos-view',
+            ],
         ];
 
         foreach ($permissions as $group => $perms) {

@@ -131,12 +131,21 @@ class MenuSeeder extends Seeder
             'parent_id' => $masterData->id,
         ]);
 
+        // Create POS Menu
+        Menu::create([
+            'title' => 'POS Terminal',
+            'icon' => 'Monitor',
+            'route' => '/pos',
+            'order' => 5,
+            'permission_name' => 'pos-view',
+        ]);
+
         // GROUP: Utilities
         $utilities = Menu::create([
             'title' => 'Utilities',
             'icon' => 'CreditCard',
             'route' => '#',
-            'order' => 5,
+            'order' => 6,
             'permission_name' => 'utilities-view',
         ]);
 
