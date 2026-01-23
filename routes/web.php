@@ -11,6 +11,9 @@ use App\Http\Controllers\UserFileController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\SettingAppController;
 use App\Http\Controllers\MediaFolderController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ServiceController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -38,6 +41,9 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('/files', [UserFileController::class, 'store'])->name('files.store');
     Route::delete('/files/{id}', [UserFileController::class, 'destroy'])->name('files.destroy');
     Route::resource('media', MediaFolderController::class);
+    Route::resource('categories', CategoryController::class);
+    Route::resource('products', ProductController::class);
+    Route::resource('services', ServiceController::class);
 });
 
 require __DIR__ . '/settings.php';

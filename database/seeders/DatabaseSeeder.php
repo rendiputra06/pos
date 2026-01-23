@@ -14,16 +14,19 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
         ]);
 
-        $user = User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@admin.com',
-            'password' => Hash::make('admin123'),
-        ]);
+        $user = User::firstOrCreate(
+            ['email' => 'admin@admin.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('admin123'),
+            ]
+        );
 
         $user->assignRole('admin');
 
         $this->call([
             MenuSeeder::class,
+            MasterDataSeeder::class,
         ]);
     }
 }

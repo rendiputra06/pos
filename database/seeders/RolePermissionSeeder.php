@@ -10,6 +10,12 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        // Reset cached roles and permissions
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Bersihkan data lama untuk konsistensi
+        Permission::query()->delete();
+
         // Buat role admin dan user jika belum ada
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $user = Role::firstOrCreate(['name' => 'user']);
@@ -31,6 +37,12 @@ class RolePermissionSeeder extends Seeder
                 'app-settings-view',
                 'backup-view',
             ],
+            'Master Data' => [
+                'master-data-view',
+                'categories-view',
+                'products-view',
+                'services-view',
+            ],
             'Utilities' => [
                 'utilities-view',
                 'log-view',
@@ -42,8 +54,8 @@ class RolePermissionSeeder extends Seeder
             foreach ($perms as $name) {
                 $permission = Permission::firstOrCreate([
                     'name' => $name,
-                    'group' => $group,
                 ]);
+                $permission->update(['group' => $group]);
 
                 // Assign ke admin
                 if (!$admin->hasPermissionTo($permission)) {

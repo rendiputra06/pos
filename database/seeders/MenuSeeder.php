@@ -11,6 +11,9 @@ class MenuSeeder extends Seeder
 {
     public function run(): void
     {
+        // Bersihkan data lama untuk menghindari duplikasi
+        Menu::query()->delete();
+
         // MENU: Dashboard
         Menu::create([
             'title' => 'Dashboard',
@@ -92,12 +95,48 @@ class MenuSeeder extends Seeder
             'parent_id' => $settings->id,
         ]);
 
+        // GROUP: Master Data
+        $masterData = Menu::create([
+            'title' => 'Master Data',
+            'icon' => 'Box',
+            'route' => '#',
+            'order' => 4,
+            'permission_name' => 'master-data-view', // Need to add this too?
+        ]);
+
+        Menu::create([
+            'title' => 'Categories',
+            'icon' => 'Folder',
+            'route' => '/categories',
+            'order' => 1,
+            'permission_name' => 'categories-view',
+            'parent_id' => $masterData->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Products (ATK)',
+            'icon' => 'Package',
+            'route' => '/products',
+            'order' => 2,
+            'permission_name' => 'products-view',
+            'parent_id' => $masterData->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Services (Jasa)',
+            'icon' => 'Printer',
+            'route' => '/services',
+            'order' => 3,
+            'permission_name' => 'services-view',
+            'parent_id' => $masterData->id,
+        ]);
+
         // GROUP: Utilities
         $utilities = Menu::create([
             'title' => 'Utilities',
             'icon' => 'CreditCard',
             'route' => '#',
-            'order' => 4,
+            'order' => 5,
             'permission_name' => 'utilities-view',
         ]);
 

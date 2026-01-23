@@ -1,6 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { type SharedData } from '@/types';
 import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { MoveRight, Store, FileText, BarChart3, Package, CheckCircle2 } from 'lucide-react';
 
 export default function Welcome() {
   const { auth, setting } = usePage<SharedData>().props;
@@ -15,100 +17,156 @@ export default function Welcome() {
     document.documentElement.style.setProperty('--color-primary-foreground', primaryForeground);
   }, [primaryColor, primaryForeground]);
 
+  const features = [
+    {
+      title: 'Manajemen Inventori ATK',
+      description: 'Pantau stok alat tulis, buku, dan perlengkapan sekolah secara real-time dengan notifikasi stok rendah.',
+      icon: <Package className="w-6 h-6" />,
+    },
+    {
+      title: 'Layanan Jasa Dokumen',
+      description: 'Sistem khusus untuk menghitung biaya fotocopy, cetak dokumen, dan penjilidan secara akurat.',
+      icon: <FileText className="w-6 h-6" />,
+    },
+    {
+      title: 'Kasir Cepat & Mudah',
+      description: 'Antarmuka POS intuitif yang mendukung pembayaran tunai maupun non-tunai (QRIS).',
+      icon: <Store className="w-6 h-6" />,
+    },
+    {
+      title: 'Analitik Penjualan',
+      description: 'Laporan laba rugi dan tren produk terlaris untuk membantu pengambilan keputusan bisnis.',
+      icon: <BarChart3 className="w-6 h-6" />,
+    },
+  ];
+
   return (
-    <>
-      <Head title="Welcome" />
-      <div className="relative min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-background to-gray-50 dark:to-gray-900">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-32 h-32 rounded-full bg-[var(--primary)]/10 blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-40 h-40 rounded-full bg-secondary/10 blur-3xl" />
-        </div>
+    <div className="min-h-screen bg-background font-sans antialiased text-foreground">
+      <Head title="Solusi POS Modern untuk Toko ATK & Fotocopy" />
 
-        <div className="relative w-full max-w-4xl text-center space-y-8 z-10">
-          {/* Header section */}
-          <div className="space-y-6">
-            <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[var(--primary)] to-[var(--primary)]/80">
-              Laravel 12 + React Starter Kit
+      {/* Navbar */}
+      <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-[var(--primary)] p-1.5 rounded-lg text-white">
+              <Store className="w-6 h-6" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">KASIR<span className="text-[var(--primary)]">KU</span></span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
+            <a href="#features" className="hover:text-[var(--primary)] transition-colors">Fitur</a>
+            <a href="#about" className="hover:text-[var(--primary)] transition-colors">Tentang</a>
+            <a href="#price" className="hover:text-[var(--primary)] transition-colors">Harga</a>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {auth.user ? (
+              <Link href="/dashboard">
+                <Button variant="default">Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="default">Masuk</Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      <main className="pt-24 pb-16">
+        {/* Hero Section */}
+        <section className="container mx-auto px-4 grid lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
+          <div className="space-y-8 animate-in fade-in slide-in-from-left duration-700">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-sm font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--primary)] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--primary)]"></span>
+              </span>
+              Solusi POS #1 untuk Toko ATK di Indonesia
+            </div>
+            
+            <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1]">
+              Kelola Toko ATK & <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-indigo-500">Fotocopy</span> Lebih Profesional
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Accelerate your development with a production-ready foundation featuring authentication, role management, customizable settings, and a modern UI.
+            
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
+              Tingkatkan efisiensi layanan fotocopy dan penjualan alat tulis Anda dengan sistem kasir yang dirancang khusus untuk kebutuhan toko ATK di Indonesia.
             </p>
-          </div>
 
-          {/* CTA section */}
-          {auth.user ? (
-            <div className="space-y-4">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-[var(--primary)] text-white font-medium hover:bg-[var(--primary)]/90 transition-all transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-              >
-                Go to Dashboard
-                <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href={auth.user ? "/dashboard" : "/login"}>
+                <Button size="lg" className="h-14 px-8 text-lg gap-2">
+                  Mulai Sekarang <MoveRight className="w-5 h-5" />
+                </Button>
               </Link>
+              <Button size="lg" variant="outline" className="h-14 px-8 text-lg">
+                Lihat Demo
+              </Button>
             </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link
-                href="/login"
-                className="px-8 py-3 rounded-lg border border-border bg-white dark:bg-gray-800 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all transform hover:-translate-y-0.5 shadow-sm hover:shadow-md"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="px-8 py-3 rounded-lg bg-[var(--primary)] text-white font-medium hover:bg-[var(--primary)]/90 transition-all transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-              >
-                Get Started
-              </Link>
-            </div>
-          )}
 
-          {/* Features grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-[var(--primary)] mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+            <div className="grid grid-cols-2 gap-6 pt-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                <span className="text-sm font-medium">Mudah Digunakan</span>
               </div>
-              <h3 className="font-semibold text-lg mb-2">Secure Authentication</h3>
-              <p className="text-muted-foreground text-sm">Built-in user authentication with email verification and password reset.</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-[var(--primary)] mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                <span className="text-sm font-medium">Mendukung QRIS</span>
               </div>
-              <h3 className="font-semibold text-lg mb-2">Role Management</h3>
-              <p className="text-muted-foreground text-sm">Flexible role-based permissions system for controlling access.</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-              <div className="text-[var(--primary)] mb-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Modern Dashboard</h3>
-              <p className="text-muted-foreground text-sm">Clean, responsive interface with dark mode support.</p>
             </div>
           </div>
 
-          {/* Footer links */}
-          <div className="pt-8 space-y-2 text-sm text-muted-foreground">
-            <p>
-              Read the <a href="https://laravel.com/docs" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline font-medium">Laravel documentation</a> or explore <a href="https://laracasts.com" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline font-medium">Laracasts tutorials</a>.
-            </p>
-            <p>
-              Need quick deployment? Try <a href="https://cloud.laravel.com" target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline font-medium">Laravel Cloud</a>.
-            </p>
+          <div className="relative lg:block animate-in fade-in slide-in-from-right duration-700 delay-200">
+            <div className="absolute -inset-4 bg-gradient-to-tr from-[var(--primary)]/20 to-indigo-500/20 blur-3xl opacity-50 rounded-full" />
+            <img 
+              src="/home/xymine/.gemini/antigravity/brain/783ba4a4-9f4c-461b-8d58-bf4198ec26ef/pos_hero_atk_photocopy_1769187829591.png" 
+              alt="KasirKu POS Dashboard" 
+              className="relative w-full h-auto rounded-2xl shadow-2xl border bg-card"
+            />
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="container mx-auto px-4 py-24 space-y-16">
+          <div className="text-center space-y-4 max-w-2xl mx-auto">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Semua yang Anda Butuhkan dalam Satu Sistem</h2>
+            <p className="text-muted-foreground">Fitur lengkap yang dirancang untuk mempermudah operasional harian toko ATK dan layanan fotocopy Anda.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {features.map((feature, index) => (
+              <div key={index} className="p-8 rounded-2xl border bg-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-6">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA section removed */}
+      </main>
+
+      <footer className="border-t py-12 bg-gray-50 dark:bg-gray-900/50">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-2">
+            <div className="bg-[var(--primary)] p-1.5 rounded-lg text-white">
+              <Store className="w-6 h-6" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">KASIR<span className="text-[var(--primary)]">KU</span></span>
+          </div>
+          <p className="text-sm text-muted-foreground">© 2026 KasirKu POS. Dibuat dengan ❤ untuk UMKM Indonesia.</p>
+          <div className="flex gap-6 text-sm font-medium text-muted-foreground">
+            <a href="#" className="hover:text-[var(--primary)]">Kebijakan Privasi</a>
+            <a href="#" className="hover:text-[var(--primary)]">Syarat & Ketentuan</a>
           </div>
         </div>
-      </div>
-    </>
+      </footer>
+    </div>
   );
 }
