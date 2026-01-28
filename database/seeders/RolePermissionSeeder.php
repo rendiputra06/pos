@@ -36,6 +36,8 @@ class RolePermissionSeeder extends Seeder
                 'menu-view',
                 'app-settings-view',
                 'backup-view',
+                'backup-run',
+                'backup-delete',
             ],
             'Master Data' => [
                 'master-data-view',
@@ -50,6 +52,15 @@ class RolePermissionSeeder extends Seeder
             ],
             'POS' => [
                 'pos-view',
+            ],
+            'Reports' => [
+                'reports-view',
+                'sales-report-view',
+                'profit-loss-view',
+                'expenses-view',
+                'expenses-create',
+                'expenses-edit',
+                'expenses-delete',
             ],
         ];
 

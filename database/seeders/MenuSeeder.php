@@ -140,12 +140,48 @@ class MenuSeeder extends Seeder
             'permission_name' => 'pos-view',
         ]);
 
+        // GROUP: Reports
+        $reports = Menu::create([
+            'title' => 'Reports',
+            'icon' => 'BarChart3',
+            'route' => '#',
+            'order' => 6,
+            'permission_name' => 'reports-view',
+        ]);
+
+        Menu::create([
+            'title' => 'Sales Report',
+            'icon' => 'Receipt',
+            'route' => '/reports/sales',
+            'order' => 1,
+            'permission_name' => 'sales-report-view',
+            'parent_id' => $reports->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Profit & Loss',
+            'icon' => 'TrendingUp',
+            'route' => '/reports/profit-loss',
+            'order' => 2,
+            'permission_name' => 'profit-loss-view',
+            'parent_id' => $reports->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Operational Expenses',
+            'icon' => 'CreditCard',
+            'route' => '/expenses',
+            'order' => 3,
+            'permission_name' => 'expenses-view',
+            'parent_id' => $reports->id,
+        ]);
+
         // GROUP: Utilities
         $utilities = Menu::create([
             'title' => 'Utilities',
             'icon' => 'CreditCard',
             'route' => '#',
-            'order' => 6,
+            'order' => 7,
             'permission_name' => 'utilities-view',
         ]);
 

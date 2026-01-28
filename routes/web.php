@@ -16,6 +16,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\Api\PosApiController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\ExpenseController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -46,12 +49,24 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('categories', CategoryController::class);
     Route::resource('products', ProductController::class);
     Route::resource('services', ServiceController::class);
+    Route::resource('expenses', ExpenseController::class);
 
     // POS Routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::get('/pos/receipt/{transaction}', [PosController::class, 'receipt'])->name('pos.receipt');
     Route::get('/api/pos/search', [PosApiController::class, 'search'])->name('api.pos.search');
     Route::post('/api/pos/transaction', [PosApiController::class, 'store'])->name('api.pos.store');
+
+    // Reports Routes
+    Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+    Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
+    Route::get('/reports/export/sales', [ReportController::class, 'exportSales'])->name('reports.export.sales');
+
+    // Analytics API Routes
+    Route::get('/api/analytics/dashboard', [AnalyticsController::class, 'dashboard'])->name('api.analytics.dashboard');
+    Route::get('/api/analytics/sales-trend', [AnalyticsController::class, 'salesTrend'])->name('api.analytics.sales-trend');
+    Route::get('/api/analytics/category-breakdown', [AnalyticsController::class, 'categoryBreakdown'])->name('api.analytics.category-breakdown');
+    Route::get('/api/analytics/profit-loss', [AnalyticsController::class, 'profitLoss'])->name('api.analytics.profit-loss');
 });
 
 require __DIR__ . '/settings.php';

@@ -13,31 +13,64 @@ Sistem manajemen penjualan digital yang dirancang untuk mempercepat proses trans
 
 ## Teknologi yang Digunakan
 
-- **Frontend**: [Isi Framework, misal: React.js / Next.js / Vue.js]
-- **Backend**: [Isi Framework, misal: Node.js / Laravel / Go]
-- **Database**: [Isi Database, misal: PostgreSQL / MySQL / MongoDB]
-- **Autentikasi**: JSON Web Token (JWT)
+- **Frontend**: Inertia.js (React), Tailwind CSS, Shadcn/UI
+- **Backend**: Laravel 12
+- **Database**: MySQL/MariaDB
+- **State Management**: Ziggy (Routing), Inertia Form Helper
+- **Fitur Tambahan**: Spatie Permission (RBAC), Spatie Backup, Lucide Icons
 
 ## Instalasi
 
 1. Clone repositori:
    ```bash
-   git clone https://github.com/username/nama-repo.git
+   git clone https://github.com/yogijowo/laravel12-react-starterkit.git
    ```
-2. Instal dependensi:
+2. Instal dependensi PHP:
+   ```bash
+   composer install
+   ```
+3. Instal dependensi Node.js:
    ```bash
    npm install
    ```
-3. Konfigurasi Environment:
-   Salin file `.env.example` menjadi `.env` dan sesuaikan kredensial database.
-4. Jalankan Migrasi Database:
+4. Konfigurasi Environment:
    ```bash
-   npm run migrate
+   cp .env.example .env
+   php artisan key:generate
    ```
-5. Jalankan Aplikasi:
+5. Jalankan Migrasi & Seeder:
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
+6. Jalankan Aplikasi:
    ```bash
    npm run dev
    ```
+
+## Perintah Penting
+
+### 🛡️ Izin & Hak Akses
+Jika Anda menambahkan menu baru atau mengubah permission di `RolePermissionSeeder.php`, jalankan:
+```bash
+php artisan db:seed --class=RolePermissionSeeder
+```
+
+### 💾 Backup Database
+Untuk melakukan pencadangan manual basis data:
+```bash
+php artisan backup:run --only-db
+```
+*Pastikan path `DB_DUMP_COMMAND_PATH` di `.env` sudah benar jika menggunakan Linux/Mac.*
+
+### 🛠️ Development
+Menjalankan server development secara sinkron (Laravel + Vite):
+```bash
+composer dev
+```
+atau
+```bash
+npm run dev
+```
 
 ## Lisensi
 
