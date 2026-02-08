@@ -21,8 +21,28 @@ class PosApiController extends Controller
             return response()->json([]);
         }
 
+        // Check for exact SKU or Barcode match first (Common for scanners)
+        $exactMatch = Product::where('sku', $query)
+            ->orWhere('barcode', $query)
+            ->first();
+
+        if ($exactMatch) {
+            return response()->json([[
+                'id' => $exactMatch->id,
+                'name' => $exactMatch->name,
+                'price' => $exactMatch->price,
+                'type' => 'product',
+                'sku' => $exactMatch->sku,
+                'barcode' => $exactMatch->barcode,
+                'stock' => $exactMatch->stock,
+                'unit' => $exactMatch->unit,
+                'is_exact' => true
+            ]]);
+        }
+
         $products = Product::where('name', 'like', "%{$query}%")
             ->orWhere('sku', 'like', "%{$query}%")
+            ->orWhere('barcode', 'like', "%{$query}%")
             ->limit(10)
             ->get()
             ->map(function ($p) {
@@ -32,6 +52,7 @@ class PosApiController extends Controller
                     'price' => $p->price,
                     'type' => 'product',
                     'sku' => $p->sku,
+                    'barcode' => $p->barcode,
                     'stock' => $p->stock,
                     'unit' => $p->unit,
                 ];

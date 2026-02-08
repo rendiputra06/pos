@@ -94,4 +94,11 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus.');
     }
+
+    public function barcode(Product $product)
+    {
+        return Inertia::render('products/Barcode', [
+            'product' => $product,
+        ]);
+    }
 }

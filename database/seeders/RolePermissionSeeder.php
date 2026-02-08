@@ -44,6 +44,18 @@ class RolePermissionSeeder extends Seeder
                 'categories-view',
                 'products-view',
                 'services-view',
+                'suppliers-view',
+                'suppliers-create',
+                'suppliers-edit',
+                'suppliers-delete',
+            ],
+            'Inventory' => [
+                'inventory-view',
+                'purchases-view',
+                'purchases-create',
+                'purchases-edit',
+                'purchases-delete',
+                'stock-in-view',
             ],
             'Utilities' => [
                 'utilities-view',

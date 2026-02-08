@@ -131,12 +131,39 @@ class MenuSeeder extends Seeder
             'parent_id' => $masterData->id,
         ]);
 
+        Menu::create([
+            'title' => 'Suppliers',
+            'icon' => 'Users',
+            'route' => '/suppliers',
+            'order' => 4,
+            'permission_name' => 'suppliers-view',
+            'parent_id' => $masterData->id,
+        ]);
+
+        // GROUP: Inventory
+        $inventory = Menu::create([
+            'title' => 'Inventory',
+            'icon' => 'Warehouse',
+            'route' => '#',
+            'order' => 5,
+            'permission_name' => 'inventory-view',
+        ]);
+
+        Menu::create([
+            'title' => 'Stok Masuk',
+            'icon' => 'Truck',
+            'route' => '/purchases',
+            'order' => 1,
+            'permission_name' => 'purchases-view',
+            'parent_id' => $inventory->id,
+        ]);
+
         // Create POS Menu
         Menu::create([
             'title' => 'POS Terminal',
             'icon' => 'Monitor',
             'route' => '/pos',
-            'order' => 5,
+            'order' => 6,
             'permission_name' => 'pos-view',
         ]);
 
@@ -145,7 +172,7 @@ class MenuSeeder extends Seeder
             'title' => 'Reports',
             'icon' => 'BarChart3',
             'route' => '#',
-            'order' => 6,
+            'order' => 7,
             'permission_name' => 'reports-view',
         ]);
 

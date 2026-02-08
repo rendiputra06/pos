@@ -16,9 +16,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\Api\PosApiController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\PurchaseController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -47,9 +47,13 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::delete('/files/{id}', [UserFileController::class, 'destroy'])->name('files.destroy');
     Route::resource('media', MediaFolderController::class);
     Route::resource('categories', CategoryController::class);
+    Route::get('/products/{product}/barcode', [ProductController::class, 'barcode'])->name('products.barcode');
     Route::resource('products', ProductController::class);
     Route::resource('services', ServiceController::class);
     Route::resource('expenses', ExpenseController::class);
+    Route::resource('suppliers', SupplierController::class);
+    Route::resource('purchases', PurchaseController::class);
+    Route::patch('/purchases/{purchase}/status', [PurchaseController::class, 'updateStatus'])->name('purchases.update-status');
 
     // POS Routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');

@@ -110,9 +110,60 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
 
     const clearCart = () => setCart([]);
 
-    // Search Effect
+    // Barcode Scanner Listener
     useEffect(() => {
-        console.log('Search query:', searchQuery, 'Length:', searchQuery.length);
+        let buffer = '';
+        let timer: any;
+
+        const handleScanner = (e: KeyboardEvent) => {
+            // Ignore if active element is an input (unless it's the POS search)
+            const active = document.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') && !active.hasAttribute('cmdk-input')) {
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                if (buffer.length >= 3) {
+                    processBarcode(buffer);
+                }
+                buffer = '';
+                return;
+            }
+
+            if (e.key.length === 1) {
+                buffer += e.key;
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    buffer = '';
+                }, 200); // Reset buffer if slow typing (human)
+            }
+        };
+
+        const processBarcode = async (barcode: string) => {
+            try {
+                const res = await axios.get(route('api.pos.search'), { params: { q: barcode } });
+                const results = res.data;
+                
+                // If exact match found, add directly
+                const exactMatch = results.find((r: any) => r.is_exact);
+                if (exactMatch) {
+                    addToCart(exactMatch);
+                    toast.success(`${exactMatch.name} ditambahkan via scan`);
+                } else if (results.length === 1) {
+                    addToCart(results[0]);
+                    toast.success(`${results[0].name} ditambahkan via scan`);
+                }
+            } catch (err) {
+                console.error('Barcode processing error:', err);
+            }
+        };
+
+        window.addEventListener('keydown', handleScanner);
+        return () => window.removeEventListener('keydown', handleScanner);
+    }, [cart]);
+
+    // Search Effect - Handle auto-add if exact match
+    useEffect(() => {
         if (searchQuery.length < 2) {
             setSearchResults([]);
             return;
@@ -120,10 +171,18 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
 
         const timer = setTimeout(async () => {
             try {
-                console.log('Calling search API with query:', searchQuery);
                 const res = await axios.get(route('api.pos.search'), { params: { q: searchQuery } });
-                console.log('Search results:', res.data);
-                setSearchResults(res.data);
+                const results = res.data;
+                
+                // Check if result has is_exact flag (Backend prioritized it)
+                const exact = results.find((r: any) => r.is_exact);
+                if (exact && results.length === 1) {
+                    addToCart(exact);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                } else {
+                    setSearchResults(results);
+                }
             } catch (e) {
                 console.error('Search error:', e);
             }
@@ -137,13 +196,12 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
-                // Focus the command input
                 const commandInput = document.querySelector('[cmdk-input]') as HTMLInputElement;
                 if (commandInput) commandInput.focus();
             }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
     const cartTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
