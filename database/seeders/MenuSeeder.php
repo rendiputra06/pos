@@ -23,9 +23,9 @@ class MenuSeeder extends Seeder
             'permission_name' => 'dashboard-view',
         ]);
 
-        // GROUP: Access
+        // GROUP: Akses
         $access = Menu::create([
-            'title' => 'Access',
+            'title' => 'Akses',
             'icon' => 'Contact',
             'route' => '#',
             'order' => 2,
@@ -33,7 +33,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Permissions',
+            'title' => 'Hak Akses',
             'icon' => 'AlertOctagon',
             'route' => '/permissions',
             'order' => 2,
@@ -42,7 +42,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Users',
+            'title' => 'Pengguna',
             'icon' => 'Users',
             'route' => '/users',
             'order' => 3,
@@ -51,7 +51,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Roles',
+            'title' => 'Peran',
             'icon' => 'AlertTriangle',
             'route' => '/roles',
             'order' => 4,
@@ -59,9 +59,9 @@ class MenuSeeder extends Seeder
             'parent_id' => $access->id,
         ]);
 
-        // GROUP: Settings
+        // GROUP: Pengaturan
         $settings = Menu::create([
-            'title' => 'Settings',
+            'title' => 'Pengaturan',
             'icon' => 'Settings',
             'route' => '#',
             'order' => 3,
@@ -69,7 +69,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Menu Manager',
+            'title' => 'Pengelola Menu',
             'icon' => 'Menu',
             'route' => '/menus',
             'order' => 1,
@@ -78,7 +78,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'App Settings',
+            'title' => 'Pengaturan Aplikasi',
             'icon' => 'AtSign',
             'route' => '/settingsapp',
             'order' => 2,
@@ -87,7 +87,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Backup',
+            'title' => 'Cadangan',
             'icon' => 'Inbox',
             'route' => '/backup',
             'order' => 3,
@@ -95,17 +95,17 @@ class MenuSeeder extends Seeder
             'parent_id' => $settings->id,
         ]);
 
-        // GROUP: Master Data
+        // GROUP: Data Master
         $masterData = Menu::create([
-            'title' => 'Master Data',
+            'title' => 'Data Master',
             'icon' => 'Box',
             'route' => '#',
             'order' => 4,
-            'permission_name' => 'master-data-view', // Need to add this too?
+            'permission_name' => 'master-data-view',
         ]);
 
         Menu::create([
-            'title' => 'Categories',
+            'title' => 'Kategori',
             'icon' => 'Folder',
             'route' => '/categories',
             'order' => 1,
@@ -114,7 +114,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Products (ATK)',
+            'title' => 'Produk (ATK)',
             'icon' => 'Package',
             'route' => '/products',
             'order' => 2,
@@ -123,7 +123,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Services (Jasa)',
+            'title' => 'Layanan (Jasa)',
             'icon' => 'Printer',
             'route' => '/services',
             'order' => 3,
@@ -132,7 +132,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Suppliers',
+            'title' => 'Pemasok',
             'icon' => 'Users',
             'route' => '/suppliers',
             'order' => 4,
@@ -140,9 +140,9 @@ class MenuSeeder extends Seeder
             'parent_id' => $masterData->id,
         ]);
 
-        // GROUP: Inventory
+        // GROUP: Inventaris
         $inventory = Menu::create([
-            'title' => 'Inventory',
+            'title' => 'Inventaris',
             'icon' => 'Warehouse',
             'route' => '#',
             'order' => 5,
@@ -160,16 +160,16 @@ class MenuSeeder extends Seeder
 
         // Create POS Menu
         Menu::create([
-            'title' => 'POS Terminal',
+            'title' => 'Terminal KASIR',
             'icon' => 'Monitor',
             'route' => '/pos',
             'order' => 6,
             'permission_name' => 'pos-view',
         ]);
 
-        // GROUP: Reports
+        // GROUP: Laporan
         $reports = Menu::create([
-            'title' => 'Reports',
+            'title' => 'Laporan',
             'icon' => 'BarChart3',
             'route' => '#',
             'order' => 7,
@@ -177,7 +177,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Sales Report',
+            'title' => 'Laporan Penjualan',
             'icon' => 'Receipt',
             'route' => '/reports/sales',
             'order' => 1,
@@ -186,7 +186,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Profit & Loss',
+            'title' => 'Laba & Rugi',
             'icon' => 'TrendingUp',
             'route' => '/reports/profit-loss',
             'order' => 2,
@@ -195,7 +195,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Operational Expenses',
+            'title' => 'Biaya Operasional',
             'icon' => 'CreditCard',
             'route' => '/expenses',
             'order' => 3,
@@ -203,9 +203,9 @@ class MenuSeeder extends Seeder
             'parent_id' => $reports->id,
         ]);
 
-        // GROUP: Utilities
+        // GROUP: Utilitas
         $utilities = Menu::create([
-            'title' => 'Utilities',
+            'title' => 'Utilitas',
             'icon' => 'CreditCard',
             'route' => '#',
             'order' => 7,
@@ -213,7 +213,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Audit Logs',
+            'title' => 'Log Audit',
             'icon' => 'Activity',
             'route' => '/audit-logs',
             'order' => 2,
@@ -222,7 +222,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'File Manager',
+            'title' => 'Pengelola File',
             'icon' => 'Folder',
             'route' => '/files',
             'order' => 3,

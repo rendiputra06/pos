@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { Loader2, Printer, QrCode } from 'lucide-react';
+import { Loader2, CheckCircle, QrCode } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface PaymentModalProps {
@@ -129,8 +129,8 @@ export function PaymentModal({ open, onOpenChange, total, onProcess }: PaymentMo
                         disabled={processing || (method === 'cash' && (!cashAmount || parseFloat(cashAmount) < total))} 
                         className="w-full h-12 text-lg"
                     >
-                        {processing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Printer className="w-5 h-5 mr-2" />}
-                        {processing ? 'Memproses...' : 'Bayar & Cetak Struk'}
+                        {processing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle className="w-5 h-5 mr-2" />}
+                        {processing ? 'Memproses...' : 'Konfirmasi Bayar'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

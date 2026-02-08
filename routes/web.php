@@ -19,9 +19,14 @@ use App\Http\Controllers\Api\PosApiController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Api\AnalyticsController;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    return Inertia::render('welcome', [
+        'products' => \App\Models\Product::with('category')->latest()->limit(8)->get(),
+        'services' => \App\Models\Service::with(['category', 'priceLevels'])->get(),
+    ]);
 })->name('home');
 
 Route::middleware(['auth', 'menu.permission'])->group(function () {

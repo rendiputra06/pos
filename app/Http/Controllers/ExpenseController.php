@@ -43,6 +43,14 @@ class ExpenseController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        return Inertia::render('expenses/Create', [
+            'categories' => ['Salary', 'Rent', 'Utilities', 'Supplies', 'Maintenance', 'Marketing', 'Other'],
+            'paymentMethods' => ['Cash', 'Bank Transfer'],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -90,6 +98,15 @@ class ExpenseController extends Controller
         $expense->update($validated);
 
         return redirect()->route('expenses.index')->with('success', 'Biaya operasional berhasil diperbarui.');
+    }
+
+    public function edit(Expense $expense)
+    {
+        return Inertia::render('expenses/Edit', [
+            'expense' => $expense,
+            'categories' => ['Salary', 'Rent', 'Utilities', 'Supplies', 'Maintenance', 'Marketing', 'Other'],
+            'paymentMethods' => ['Cash', 'Bank Transfer'],
+        ]);
     }
 
     public function destroy(Expense $expense)

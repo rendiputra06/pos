@@ -100,22 +100,25 @@ class PosApiController extends Controller
             ]);
 
             foreach ($request->items as $item) {
+                $costPrice = 0;
+                
+                if ($item['type'] === 'product') {
+                    $product = Product::find($item['id']);
+                    if ($product) {
+                        $costPrice = $product->cost_price;
+                        $product->decrement('stock', $item['qty']);
+                    }
+                }
+
                 TransactionDetail::create([
                     'transaction_id' => $transaction->id,
                     'item_type' => $item['type'] === 'product' ? Product::class : Service::class,
                     'item_id' => $item['id'],
                     'qty' => $item['qty'],
                     'price' => $item['price'],
+                    'cost_price' => $costPrice,
                     'subtotal' => $item['qty'] * $item['price'],
                 ]);
-
-                // Reduce stock if it's a product
-                if ($item['type'] === 'product') {
-                    $product = Product::find($item['id']);
-                    if ($product) {
-                        $product->decrement('stock', $item['qty']);
-                    }
-                }
             }
 
             return response()->json([

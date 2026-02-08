@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\Expense;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use Illuminate\Support\Facades\DB;
@@ -112,25 +113,43 @@ class ReportService
     /**
      * Get top selling products
      */
-    private function getTopProducts(int $limit = 5)
+    public function getTopProducts(int $limit = 5)
     {
-        return TransactionDetail::where('item_type', Product::class)
+        $topOrder = TransactionDetail::where('item_type', Product::class)
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
             ->where('transactions.status', 'success')
-            ->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_sales'))
+            ->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(transaction_details.subtotal) as total_sales'))
             ->groupBy('item_id')
             ->orderByDesc('total_qty')
             ->limit($limit)
-            ->get()
-            ->map(function ($item) {
-                $product = Product::find($item->item_id);
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'total_qty' => $item->total_qty,
-                    'total_sales' => $item->total_sales,
-                ];
-            });
+            ->get();
+
+        $products = $topOrder->map(function ($item) {
+            $product = Product::find($item->item_id);
+            if (!$product) return null;
+            return array_merge($product->toArray(), [
+                'type' => 'product',
+                'is_top' => true
+            ]);
+        })->filter();
+
+        // Fallback to latest products if not enough top products
+        if ($products->count() < $limit) {
+            $excludeIds = $products->pluck('id')->toArray();
+            $latest = Product::whereNotIn('id', $excludeIds)
+                ->latest()
+                ->limit($limit - $products->count())
+                ->get()
+                ->map(function ($p) {
+                    return array_merge($p->toArray(), [
+                        'type' => 'product',
+                        'is_top' => false
+                    ]);
+                });
+            $products = $products->concat($latest);
+        }
+
+        return $products->values();
     }
 
     /**
@@ -186,10 +205,7 @@ class ReportService
             $detailsQuery->where('transactions.created_at', '<=', $endDate);
         }
 
-        $cogs = $detailsQuery->get()->sum(function ($detail) {
-            $product = Product::find($detail->item_id);
-            return $product ? ($product->cost_price * $detail->qty) : 0;
-        });
+        $cogs = $detailsQuery->sum(DB::raw('transaction_details.cost_price * transaction_details.qty'));
 
         // Calculate Operational Expenses
         $expenseQuery = Expense::query(); // Used Expense model

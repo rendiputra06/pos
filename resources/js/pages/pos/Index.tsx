@@ -7,10 +7,11 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
-import { Minus, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Minus, Plus, Search, ShoppingCart, Trash2, X, Printer, History, Clock, Star, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PaymentModal } from './components/payment-modal';
+import { router } from '@inertiajs/react';
 
 interface Product {
     id: number;
@@ -29,7 +30,7 @@ interface CartItem extends Product {
     original_price: number; // for displaying discount/wholesale effect
 }
 
-export default function PosIndex({ serviceCategories }: { serviceCategories: any[] }) {
+export default function PosIndex({ serviceCategories, recentTransactions, topProducts }: { serviceCategories: any[], recentTransactions: any[], topProducts: any[] }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -52,11 +53,12 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                 const newPrice = calculateItemPrice(existing, newQty);
                 return prev.map((i) =>
                     i.id === product.id && i.type === product.type
-                        ? { ...i, qty: newQty, price: newPrice, subtotal: newQty * newPrice }
+                        ? { ...i, qty: newQty, price: newPrice, subtotal: Number(newQty * newPrice) }
                         : i
                 );
             }
-            return [...prev, { ...product, qty: 1, original_price: product.price, subtotal: product.price }];
+            const price = Number(product.price);
+            return [...prev, { ...product, qty: 1, price: price, original_price: price, subtotal: price }];
         });
         setSearchQuery('');
         setSearchResults([]);
@@ -80,7 +82,7 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                 ...item,
                 qty: newQty,
                 price: newPrice,
-                subtotal: newQty * newPrice
+                subtotal: Number(newQty * newPrice)
             };
             return newCart;
         });
@@ -98,7 +100,7 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                 ...item,
                 qty: qty,
                 price: newPrice,
-                subtotal: qty * newPrice
+                subtotal: Number(qty * newPrice)
             };
             return newCart;
         });
@@ -204,7 +206,7 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const cartTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+    const cartTotal = cart.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
     const handleProcessPayment = async (method: string, amount: number) => {
         try {
@@ -217,14 +219,13 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
             };
 
             const response = await axios.post(route('api.pos.store'), payload);
-            toast.success('Transaksi berhasil!', { description: 'Struk sedang dicetak...' });
+            toast.success('Transaksi berhasil!', { description: 'Data telah disimpan.' });
             
-            // Open receipt in new window
-            const transactionId = response.data.data.id;
-            window.open(route('pos.receipt', transactionId), '_blank', 'width=400,height=600');
-
             setCart([]);
             setShowPayment(false);
+            
+            // Refresh recent transactions
+            router.reload({ only: ['recentTransactions'] });
         } catch (error) {
             console.error(error);
             toast.error('Gagal memproses transaksi.');
@@ -281,6 +282,38 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                     {/* Shortcuts Grid */}
                     <ScrollArea className="flex-1">
                         <div className="space-y-6">
+                            {/* Top Products Section */}
+                            {topProducts && topProducts.length > 0 && (
+                                <div>
+                                    <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                        <Zap className="w-4 h-4 text-orange-500 fill-orange-500" /> Produk Rekomendasi
+                                    </h3>
+                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {topProducts.map((product: any) => (
+                                            <button
+                                                key={product.id}
+                                                onClick={() => addToCart(product)}
+                                                className="flex flex-col items-start p-3 bg-card hover:bg-accent border rounded-xl shadow-sm hover:shadow-md transition-all text-left relative overflow-hidden group"
+                                            >
+                                                <div className="absolute top-0 right-0 p-1 bg-primary text-white rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Plus className="w-3 h-3" />
+                                                </div>
+                                                {product.is_top && (
+                                                    <div className="absolute -top-1 -left-5 bg-yellow-400 text-yellow-900 text-[8px] font-black px-5 py-3 -rotate-45 shadow-sm">
+                                                        TOP
+                                                    </div>
+                                                )}
+                                                <span className="font-bold text-sm line-clamp-2 leading-tight">{product.name}</span>
+                                                <div className="flex justify-between w-full items-end mt-2">
+                                                    <span className="text-primary font-mono text-xs">{formatCurrency(product.price)}</span>
+                                                    <span className="text-[10px] text-muted-foreground italic">Stok: {product.stock}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {serviceCategories.map((cat) => (
                                 <div key={cat.id}>
                                     <h3 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wider">{cat.name}</h3>
@@ -288,7 +321,12 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                                         {cat.services.map((service: any) => (
                                             <button
                                                 key={service.id}
-                                                onClick={() => addToCart({ ...service, type: 'service', price: service.base_price, original_price: service.base_price })}
+                                                onClick={() => addToCart({ 
+                                                    ...service, 
+                                                    type: 'service', 
+                                                    price: Number(service.base_price), 
+                                                    original_price: Number(service.base_price) 
+                                                })}
                                                 className="flex flex-col items-start p-3 bg-card hover:bg-accent border rounded-xl shadow-sm hover:shadow-md transition-all text-left"
                                             >
                                                 <span className="font-bold text-sm line-clamp-2 leading-tight">{service.name}</span>
@@ -386,12 +424,45 @@ export default function PosIndex({ serviceCategories }: { serviceCategories: any
                         </div>
 
                         <Button 
-                            className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20" 
+                            className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20 mb-4" 
                             disabled={cart.length === 0}
                             onClick={() => setShowPayment(true)}
                         >
                             Proses Pembayaran
                         </Button>
+
+                        {/* Recent Transactions Section */}
+                        <div className="border-t pt-4">
+                            <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+                                <History className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">5 Transaksi Terakhir</span>
+                            </div>
+                            <div className="space-y-2">
+                                {recentTransactions && recentTransactions.length > 0 ? recentTransactions.map((trx) => (
+                                    <div key={trx.id} className="flex items-center justify-between p-2 rounded-lg bg-background border text-xs group hover:border-primary transition-colors">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold">ORD-{trx.id.toString().padStart(5, '0')}</span>
+                                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                <Clock className="w-3 h-3" />
+                                                <span>{new Date(trx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="mx-1">•</span>
+                                                <span className="font-bold text-foreground">{formatCurrency(Number(trx.grand_total))}</span>
+                                            </div>
+                                        </div>
+                                        <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => window.open(route('pos.receipt', trx.id), '_blank', 'width=400,height=600')}
+                                        >
+                                            <Printer className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </div>
+                                )) : (
+                                    <div className="text-[10px] text-center text-muted-foreground py-2 italic">Belum ada transaksi.</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
