@@ -55,7 +55,7 @@ class ExpenseController extends Controller
     {
         $validated = $request->validate([
             'category' => 'required|string',
-            'description' => 'required|string',
+            'description' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'expense_date' => 'required|date',
             'payment_method' => 'required|string',
@@ -68,6 +68,7 @@ class ExpenseController extends Controller
             $validated['receipt_image'] = $path;
         }
 
+        $validated['store_id'] = $request->user()->store_id;
         $validated['created_by'] = $request->user()->id;
 
         Expense::create($validated);

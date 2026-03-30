@@ -17,6 +17,7 @@ class RolePermissionSeeder extends Seeder
         Permission::query()->delete();
 
         // Buat role admin dan user jika belum ada
+        $superAdmin = Role::firstOrCreate(['name' => 'super-admin']);
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $user = Role::firstOrCreate(['name' => 'user']);
 
@@ -74,6 +75,19 @@ class RolePermissionSeeder extends Seeder
                 'expenses-edit',
                 'expenses-delete',
             ],
+            'Multi-Store' => [
+                'multi-store-view',
+                'stores-view',
+                'stores-create',
+                'stores-edit',
+                'stores-delete',
+                'product-bank-view',
+                'product-bank-create',
+                'product-bank-edit',
+                'product-bank-delete',
+                'store-products-view',
+                'store-products-edit',
+            ],
         ];
 
         foreach ($permissions as $group => $perms) {
@@ -83,7 +97,10 @@ class RolePermissionSeeder extends Seeder
                 ]);
                 $permission->update(['group' => $group]);
 
-                // Assign ke admin
+                // Assign ke super-admin & admin
+                if (!$superAdmin->hasPermissionTo($permission)) {
+                    $superAdmin->givePermissionTo($permission);
+                }
                 if (!$admin->hasPermissionTo($permission)) {
                     $admin->givePermissionTo($permission);
                 }

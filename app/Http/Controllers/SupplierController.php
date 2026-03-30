@@ -37,9 +37,11 @@ class SupplierController extends Controller
             'name' => 'required|string|max:255',
             'contact_person' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
+            'email' => 'nullable|email|max:255',
         ]);
+
+        $validated['store_id'] = $request->user()->store_id;
 
         Supplier::create($validated);
 

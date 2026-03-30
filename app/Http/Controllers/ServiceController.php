@@ -46,8 +46,9 @@ class ServiceController extends Controller
             'price_levels.*.price' => 'required|numeric|min:0',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $request) {
             $service = Service::create([
+                'store_id' => $request->user()->store_id,
                 'category_id' => $validated['category_id'],
                 'name' => $validated['name'],
                 'base_price' => $validated['base_price'],

@@ -6,7 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Download, Filter, Search } from 'lucide-react';
+import { 
+    Select, 
+    SelectContent, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from "@/components/ui/select";
+import { Calendar, Download, Filter, Search, Store } from 'lucide-react';
 import { useState } from 'react';
 
 interface Transaction {
@@ -31,17 +38,21 @@ interface SalesReportProps {
         start_date?: string;
         end_date?: string;
         user_id?: string;
+        store_id?: string;
     };
+    stores?: Array<{ id: number; name: string }>;
 }
 
-export default function SalesReport({ transactions, filters }: SalesReportProps) {
+export default function SalesReport({ transactions, filters, stores = [] }: SalesReportProps) {
     const [startDate, setStartDate] = useState(filters.start_date || '');
     const [endDate, setEndDate] = useState(filters.end_date || '');
+    const [storeId, setStoreId] = useState(filters.store_id || 'all');
 
     const handleFilter = () => {
         router.get(route('reports.sales'), {
             start_date: startDate,
             end_date: endDate,
+            store_id: storeId === 'all' ? undefined : storeId,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -51,6 +62,7 @@ export default function SalesReport({ transactions, filters }: SalesReportProps)
     const handleReset = () => {
         setStartDate('');
         setEndDate('');
+        setStoreId('all');
         router.get(route('reports.sales'));
     };
 
@@ -113,7 +125,7 @@ export default function SalesReport({ transactions, filters }: SalesReportProps)
                         <CardDescription>Pilih rentang tanggal untuk melihat laporan</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="start_date">Tanggal Mulai</Label>
                                 <Input
@@ -132,6 +144,22 @@ export default function SalesReport({ transactions, filters }: SalesReportProps)
                                     onChange={(e) => setEndDate(e.target.value)}
                                 />
                             </div>
+                            {stores.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="store_id">Toko</Label>
+                                    <Select value={storeId} onValueChange={setStoreId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Semua Toko" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Semua Toko</SelectItem>
+                                            {stores.map(s => (
+                                                <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                             <div className="flex items-end gap-2">
                                 <Button onClick={handleFilter} className="flex-1">
                                     <Search className="w-4 h-4 mr-2" />

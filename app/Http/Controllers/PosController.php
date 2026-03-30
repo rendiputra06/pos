@@ -42,7 +42,7 @@ class PosController extends Controller
 
     public function receipt(Transaction $transaction)
     {
-        $transaction->load(['user', 'details']);
+        $transaction->load(['user', 'details', 'store']);
         return Inertia::render('pos/Receipt', [
             'transaction' => $transaction,
         ]);

@@ -17,28 +17,32 @@ class AnalyticsController extends Controller
 
     public function dashboard()
     {
-        return response()->json($this->reportService->getDashboardSummary());
+        $storeId = auth()->user()->store_id;
+        return response()->json($this->reportService->getDashboardSummary($storeId));
     }
 
     public function salesTrend(Request $request)
     {
+        $storeId = auth()->user()->store_id;
         $days = $request->input('days', 7);
-        return response()->json($this->reportService->getSalesTrend($days));
+        return response()->json($this->reportService->getSalesTrend($days, $storeId));
     }
 
     public function categoryBreakdown(Request $request)
     {
+        $storeId = auth()->user()->store_id;
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         
-        return response()->json($this->reportService->getCategoryBreakdown($startDate, $endDate));
+        return response()->json($this->reportService->getCategoryBreakdown($startDate, $endDate, $storeId));
     }
 
     public function profitLoss(Request $request)
     {
+        $storeId = auth()->user()->store_id;
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         
-        return response()->json($this->reportService->getProfitLoss($startDate, $endDate));
+        return response()->json($this->reportService->getProfitLoss($startDate, $endDate, $storeId));
     }
 }

@@ -34,12 +34,18 @@ class ReportController extends Controller
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
+        
+        // Super admin can filter by store
+        if (auth()->user()->isSuperAdmin() && $request->filled('store_id')) {
+            $query->where('store_id', $request->store_id);
+        }
 
         $transactions = $query->paginate(20);
 
         return Inertia::render('reports/Sales', [
             'transactions' => $transactions,
-            'filters' => $request->only(['start_date', 'end_date', 'user_id']),
+            'filters' => $request->only(['start_date', 'end_date', 'user_id', 'store_id']),
+            'stores' => auth()->user()->isSuperAdmin() ? \App\Models\Store::all(['id', 'name']) : [],
         ]);
     }
 

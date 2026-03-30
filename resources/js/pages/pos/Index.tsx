@@ -7,11 +7,11 @@ import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
-import { Minus, Plus, Search, ShoppingCart, Trash2, X, Printer, History, Clock, Star, Zap } from 'lucide-react';
+import { Minus, Plus, Search, ShoppingCart, Trash2, X, Printer, History, Clock, Star, Zap, Store } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PaymentModal } from './components/payment-modal';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 interface Product {
     id: number;
@@ -343,9 +343,17 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
                 {/* Right Panel: Cart & Checkout */}
                 <div className="w-[400px] flex flex-col bg-background shadow-xl z-20">
                     <div className="p-4 border-b flex justify-between items-center bg-card">
-                        <div className="flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5 text-primary" />
-                            <h2 className="font-bold text-lg">Keranjang Belanja</h2>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <ShoppingCart className="w-5 h-5 text-primary" />
+                                <h2 className="font-bold text-lg">Keranjang Belanja</h2>
+                            </div>
+                            {/* @ts-ignore */}
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1 mt-1">
+                                <Store className="size-2.5" />
+                                {/* @ts-ignore */}
+                                {(usePage().props as any).auth.store?.name || 'Store'}
+                            </p>
                         </div>
                         <Button variant="ghost" size="sm" onClick={clearCart} disabled={cart.length === 0} className="text-red-500 hover:text-red-600 hover:bg-red-50">
                             Clear

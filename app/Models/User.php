@@ -21,6 +21,7 @@ class User extends Authenticatable implements HasMedia
      * @var list<string>
      */
     protected $fillable = [
+        'store_id',
         'name',
         'email',
         'password',
@@ -47,6 +48,20 @@ class User extends Authenticatable implements HasMedia
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    /**
+     * Cek apakah user adalah Super Admin.
+     * Super Admin memiliki role 'super-admin' dan bisa lintas toko.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
     }
 
     public function mediaFolders()

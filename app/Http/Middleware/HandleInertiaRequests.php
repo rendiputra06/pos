@@ -36,7 +36,11 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'store' => $request->user() ? $request->user()->store : null,
             ],
+            'stores' => $request->user() && $request->user()->isSuperAdmin() 
+                ? \App\Models\Store::all(['id', 'name']) 
+                : [],
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),

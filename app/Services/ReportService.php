@@ -2,7 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Product;
+use App\Models\ProductBank;
+use App\Models\StoreProduct;
 use App\Models\Service;
 use App\Models\Expense;
 use App\Models\Transaction;
@@ -15,35 +16,54 @@ class ReportService
     /**
      * Get dashboard summary statistics
      */
-    public function getDashboardSummary()
+    public function getDashboardSummary($storeId = null)
     {
         $today = Carbon::today();
         
+        $salesQuery = Transaction::whereDate('created_at', $today)
+            ->where('status', 'success');
+        
+        if ($storeId) {
+            $salesQuery->where('store_id', $storeId);
+        }
+
+        $lowStockQuery = StoreProduct::with('productBank')
+            ->where('stock', '<', 5);
+        
+        if ($storeId) {
+            $lowStockQuery->where('store_id', $storeId);
+        }
+        
         return [
-            'today_sales' => Transaction::whereDate('created_at', $today)
-                ->where('status', 'success')
-                ->sum('grand_total'),
-            
-            'today_transactions' => Transaction::whereDate('created_at', $today)
-                ->where('status', 'success')
-                ->count(),
-            
-            'top_products' => $this->getTopProducts(5),
-            'top_services' => $this->getTopServices(3),
-            'low_stock_products' => Product::where('stock', '<', 5)->get(['id', 'name', 'stock', 'sku']),
+            'today_sales' => $salesQuery->sum('grand_total'),
+            'today_transactions' => $salesQuery->count(),
+            'top_products' => $this->getTopProducts(5, $storeId),
+            'top_services' => $this->getTopServices(3, $storeId),
+            'low_stock_products' => $lowStockQuery->get()
+                ->map(fn($sp) => [
+                    'id' => $sp->id,
+                    'name' => $sp->productBank->name,
+                    'stock' => $sp->stock,
+                    'sku' => $sp->productBank->sku
+                ]),
         ];
     }
 
     /**
      * Get sales trend for the last N days
      */
-    public function getSalesTrend(int $days = 7)
+    public function getSalesTrend(int $days = 7, $storeId = null)
     {
         $startDate = Carbon::now()->subDays($days - 1)->startOfDay();
         
-        $sales = Transaction::where('status', 'success')
-            ->where('created_at', '>=', $startDate)
-            ->select(
+        $query = Transaction::where('status', 'success')
+            ->where('created_at', '>=', $startDate);
+
+        if ($storeId) {
+            $query->where('store_id', $storeId);
+        }
+
+        $sales = $query->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(grand_total) as total'),
                 DB::raw('COUNT(*) as count')
@@ -71,11 +91,15 @@ class ReportService
     /**
      * Get category breakdown
      */
-    public function getCategoryBreakdown($startDate = null, $endDate = null)
+    public function getCategoryBreakdown($startDate = null, $endDate = null, $storeId = null)
     {
         $query = TransactionDetail::query()
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
             ->where('transactions.status', 'success');
+
+        if ($storeId) {
+            $query->where('transactions.store_id', $storeId);
+        }
 
         if ($startDate) {
             $query->where('transactions.created_at', '>=', $startDate);
@@ -84,11 +108,12 @@ class ReportService
             $query->where('transactions.created_at', '<=', $endDate);
         }
 
-        // Get product sales by category
+        // Get product sales by category via StoreProduct -> ProductBank
         $productSales = $query->clone()
-            ->where('transaction_details.item_type', Product::class)
-            ->join('products', 'transaction_details.item_id', '=', 'products.id')
-            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->where('transaction_details.item_type', StoreProduct::class)
+            ->join('store_products', 'transaction_details.item_id', '=', 'store_products.id')
+            ->join('product_bank', 'store_products.product_bank_id', '=', 'product_bank.id')
+            ->join('categories', 'product_bank.category_id', '=', 'categories.id')
             ->select('categories.name', DB::raw('SUM(transaction_details.subtotal) as total'))
             ->groupBy('categories.id', 'categories.name')
             ->get();
@@ -113,38 +138,59 @@ class ReportService
     /**
      * Get top selling products
      */
-    public function getTopProducts(int $limit = 5)
+    public function getTopProducts(int $limit = 5, $storeId = null)
     {
-        $topOrder = TransactionDetail::where('item_type', Product::class)
+        $topOrderQuery = TransactionDetail::where('item_type', StoreProduct::class)
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
-            ->where('transactions.status', 'success')
-            ->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(transaction_details.subtotal) as total_sales'))
+            ->where('transactions.status', 'success');
+
+        if ($storeId) {
+            $topOrderQuery->where('transactions.store_id', $storeId);
+        }
+
+        $topOrder = $topOrderQuery->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(transaction_details.subtotal) as total_sales'))
             ->groupBy('item_id')
             ->orderByDesc('total_qty')
             ->limit($limit)
             ->get();
 
         $products = $topOrder->map(function ($item) {
-            $product = Product::find($item->item_id);
-            if (!$product) return null;
-            return array_merge($product->toArray(), [
+            $sp = StoreProduct::with('productBank')->find($item->item_id);
+            if (!$sp) return null;
+            return [
+                'id' => $sp->id,
+                'name' => $sp->productBank->name,
+                'sku' => $sp->productBank->sku,
+                'stock' => $sp->stock,
+                'total_qty' => $item->total_qty,
+                'total_sales' => $item->total_sales,
                 'type' => 'product',
                 'is_top' => true
-            ]);
+            ];
         })->filter();
 
         // Fallback to latest products if not enough top products
         if ($products->count() < $limit) {
             $excludeIds = $products->pluck('id')->toArray();
-            $latest = Product::whereNotIn('id', $excludeIds)
-                ->latest()
+            $latestQuery = StoreProduct::with('productBank')
+                ->whereNotIn('id', $excludeIds);
+            
+            if ($storeId) {
+                $latestQuery->where('store_id', $storeId);
+            }
+
+            $latest = $latestQuery->latest()
                 ->limit($limit - $products->count())
                 ->get()
-                ->map(function ($p) {
-                    return array_merge($p->toArray(), [
+                ->map(function ($sp) {
+                    return [
+                        'id' => $sp->id,
+                        'name' => $sp->productBank->name,
+                        'sku' => $sp->productBank->sku,
+                        'stock' => $sp->stock,
                         'type' => 'product',
                         'is_top' => false
-                    ]);
+                    ];
                 });
             $products = $products->concat($latest);
         }
@@ -155,33 +201,43 @@ class ReportService
     /**
      * Get top services
      */
-    private function getTopServices(int $limit = 3)
+    private function getTopServices(int $limit = 3, $storeId = null)
     {
-        return TransactionDetail::where('item_type', Service::class)
+        $query = TransactionDetail::where('item_type', Service::class)
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
-            ->where('transactions.status', 'success')
-            ->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_sales'))
+            ->where('transactions.status', 'success');
+
+        if ($storeId) {
+            $query->where('transactions.store_id', $storeId);
+        }
+
+        return $query->select('item_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_sales'))
             ->groupBy('item_id')
             ->orderByDesc('total_qty')
             ->limit($limit)
             ->get()
             ->map(function ($item) {
                 $service = Service::find($item->item_id);
+                if (!$service) return null;
                 return [
                     'id' => $service->id,
                     'name' => $service->name,
                     'total_qty' => $item->total_qty,
                     'total_sales' => $item->total_sales,
                 ];
-            });
+            })->filter();
     }
 
     /**
      * Calculate profit/loss
      */
-    public function getProfitLoss($startDate = null, $endDate = null)
+    public function getProfitLoss($startDate = null, $endDate = null, $storeId = null)
     {
         $query = Transaction::where('status', 'success');
+
+        if ($storeId) {
+            $query->where('store_id', $storeId);
+        }
 
         if ($startDate) {
             $query->where('created_at', '>=', $startDate);
@@ -192,11 +248,15 @@ class ReportService
 
         $revenue = $query->sum('grand_total');
 
-        // Calculate COGS (only for products, services have no cost)
+        // Calculate COGS
         $detailsQuery = TransactionDetail::query()
             ->join('transactions', 'transaction_details.transaction_id', '=', 'transactions.id')
             ->where('transactions.status', 'success')
-            ->where('transaction_details.item_type', Product::class);
+            ->where('transaction_details.item_type', StoreProduct::class);
+
+        if ($storeId) {
+            $detailsQuery->where('transactions.store_id', $storeId);
+        }
 
         if ($startDate) {
             $detailsQuery->where('transactions.created_at', '>=', $startDate);
@@ -208,7 +268,10 @@ class ReportService
         $cogs = $detailsQuery->sum(DB::raw('transaction_details.cost_price * transaction_details.qty'));
 
         // Calculate Operational Expenses
-        $expenseQuery = Expense::query(); // Used Expense model
+        $expenseQuery = Expense::query();
+        if ($storeId) {
+            $expenseQuery->where('store_id', $storeId);
+        }
         if ($startDate) {
             $expenseQuery->whereDate('expense_date', '>=', $startDate);
         }
@@ -218,16 +281,17 @@ class ReportService
         $expenses = $expenseQuery->sum('amount');
 
         $grossProfit = $revenue - $cogs;
-        $netProfit = $grossProfit - $expenses; // Calculated net profit
-        $profitMargin = $revenue > 0 ? ($netProfit / $revenue) * 100 : 0; // Profit margin based on net profit
+        $netProfit = $grossProfit - $expenses;
+        $profitMargin = $revenue > 0 ? ($netProfit / $revenue) * 100 : 0;
 
         return [
             'revenue' => $revenue,
             'cogs' => $cogs,
-            'expenses' => $expenses, // Added expenses
+            'expenses' => $expenses,
             'gross_profit' => $grossProfit,
-            'net_profit' => $netProfit, // Changed to net_profit
+            'net_profit' => $netProfit,
             'profit_margin' => round($profitMargin, 2),
         ];
     }
 }
+

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
+use App\Models\StoreProduct;
 use App\Models\Service;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
@@ -21,40 +21,44 @@ class PosApiController extends Controller
             return response()->json([]);
         }
 
-        // Check for exact SKU or Barcode match first (Common for scanners)
-        $exactMatch = Product::where('sku', $query)
-            ->orWhere('barcode', $query)
-            ->first();
+        // In multi-store, we search in StoreProduct (which uses StoreScope)
+        $exactMatch = StoreProduct::whereHas('productBank', function($q) use ($query) {
+            $q->where('sku', $query)
+              ->orWhere('barcode', $query);
+        })->first();
 
         if ($exactMatch) {
             return response()->json([[
                 'id' => $exactMatch->id,
-                'name' => $exactMatch->name,
+                'name' => $exactMatch->productBank->name,
                 'price' => $exactMatch->price,
                 'type' => 'product',
-                'sku' => $exactMatch->sku,
-                'barcode' => $exactMatch->barcode,
+                'sku' => $exactMatch->productBank->sku,
+                'barcode' => $exactMatch->productBank->barcode,
                 'stock' => $exactMatch->stock,
-                'unit' => $exactMatch->unit,
+                'unit' => $exactMatch->productBank->unit,
                 'is_exact' => true
             ]]);
         }
 
-        $products = Product::where('name', 'like', "%{$query}%")
-            ->orWhere('sku', 'like', "%{$query}%")
-            ->orWhere('barcode', 'like', "%{$query}%")
+        $products = StoreProduct::with('productBank')
+            ->whereHas('productBank', function($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('sku', 'like', "%{$query}%")
+                  ->orWhere('barcode', 'like', "%{$query}%");
+            })
             ->limit(10)
             ->get()
-            ->map(function ($p) {
+            ->map(function ($sp) {
                 return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'price' => $p->price,
+                    'id' => $sp->id,
+                    'name' => $sp->productBank->name,
+                    'price' => $sp->price,
                     'type' => 'product',
-                    'sku' => $p->sku,
-                    'barcode' => $p->barcode,
-                    'stock' => $p->stock,
-                    'unit' => $p->unit,
+                    'sku' => $sp->productBank->sku,
+                    'barcode' => $sp->productBank->barcode,
+                    'stock' => $sp->stock,
+                    'unit' => $sp->productBank->unit,
                 ];
             });
 
@@ -89,9 +93,12 @@ class PosApiController extends Controller
         ]);
 
         return DB::transaction(function () use ($request) {
+            $user = $request->user();
+            
             $transaction = Transaction::create([
+                'store_id' => $user->store_id, // Explicitly set store_id
                 'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(Str::random(4)),
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'total_amount' => $request->total_amount,
                 'discount' => $request->discount ?? 0,
                 'grand_total' => $request->grand_total,
@@ -103,7 +110,7 @@ class PosApiController extends Controller
                 $costPrice = 0;
                 
                 if ($item['type'] === 'product') {
-                    $product = Product::find($item['id']);
+                    $product = StoreProduct::find($item['id']);
                     if ($product) {
                         $costPrice = $product->cost_price;
                         $product->decrement('stock', $item['qty']);
@@ -112,7 +119,7 @@ class PosApiController extends Controller
 
                 TransactionDetail::create([
                     'transaction_id' => $transaction->id,
-                    'item_type' => $item['type'] === 'product' ? Product::class : Service::class,
+                    'item_type' => $item['type'] === 'product' ? StoreProduct::class : Service::class,
                     'item_id' => $item['id'],
                     'qty' => $item['qty'],
                     'price' => $item['price'],
@@ -129,3 +136,4 @@ class PosApiController extends Controller
         });
     }
 }
+

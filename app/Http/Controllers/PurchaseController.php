@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Models\StoreProduct;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
@@ -34,7 +34,15 @@ class PurchaseController extends Controller
     {
         return Inertia::render('purchases/Form', [
             'suppliers' => Supplier::all(['id', 'name']),
-            'products' => Product::all(['id', 'name', 'sku', 'cost_price', 'unit']),
+            'products' => StoreProduct::with('productBank')->get()->map(function($sp) {
+                return [
+                    'id' => $sp->id,
+                    'name' => $sp->productBank->name,
+                    'sku' => $sp->productBank->sku,
+                    'cost_price' => $sp->cost_price,
+                    'unit' => $sp->productBank->unit
+                ];
+            }),
         ]);
     }
 
@@ -46,34 +54,36 @@ class PurchaseController extends Controller
             'purchase_date' => 'required|date',
             'status' => 'required|in:pending,received',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'required|exists:store_products,id',
             'items.*.qty' => 'required|numeric|min:0.01',
             'items.*.cost_price' => 'required|numeric|min:0',
         ]);
 
         return DB::transaction(function () use ($request) {
+            $user = $request->user();
             $totalAmount = collect($request->items)->sum(fn($item) => $item['qty'] * $item['cost_price']);
 
             $purchase = Purchase::create([
+                'store_id' => $user->store_id,
                 'supplier_id' => $request->supplier_id,
                 'invoice_number' => $request->invoice_number,
                 'purchase_date' => $request->purchase_date,
                 'total_amount' => $totalAmount,
                 'status' => $request->status,
                 'notes' => $request->notes,
-                'created_by' => $request->user()->id,
+                'created_by' => $user->id,
             ]);
 
             foreach ($request->items as $item) {
                 $purchase->details()->create([
-                    'product_id' => $item['product_id'],
+                    'store_product_id' => $item['product_id'],
                     'qty' => $item['qty'],
                     'cost_price' => $item['cost_price'],
                     'subtotal' => $item['qty'] * $item['cost_price'],
                 ]);
 
                 if ($request->status === 'received') {
-                    $product = Product::find($item['product_id']);
+                    $product = StoreProduct::find($item['product_id']);
                     $product->increment('stock', $item['qty']);
                     $product->update(['cost_price' => $item['cost_price']]);
                 }
@@ -86,7 +96,7 @@ class PurchaseController extends Controller
     public function show(Purchase $purchase)
     {
         return Inertia::render('purchases/Show', [
-            'purchase' => $purchase->load(['supplier', 'details.product', 'creator']),
+            'purchase' => $purchase->load(['supplier', 'details.storeProduct.productBank', 'creator']),
         ]);
     }
 
@@ -105,7 +115,7 @@ class PurchaseController extends Controller
 
             if ($request->status === 'received') {
                 foreach ($purchase->details as $detail) {
-                    $product = Product::find($detail->product_id);
+                    $product = StoreProduct::find($detail->store_product_id);
                     $product->increment('stock', $detail->qty);
                     $product->update(['cost_price' => $detail->cost_price]);
                 }
@@ -126,3 +136,4 @@ class PurchaseController extends Controller
         return redirect()->route('purchases.index')->with('success', 'Data pembelian dihapus.');
     }
 }
+

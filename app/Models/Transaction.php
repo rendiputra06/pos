@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\StoreScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Transaction extends Model
 {
     protected $fillable = [
+        'store_id',
         'invoice_number',
         'user_id',
         'customer_id',
@@ -18,6 +20,17 @@ class Transaction extends Model
         'payment_method',
         'status',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new StoreScope());
+    }
+
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
 
     public function user(): BelongsTo
     {

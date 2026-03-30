@@ -20,6 +20,13 @@ interface ReceiptProps {
         payment_method: string;
         user: { name: string };
         details: TransactionItem[];
+        store: {
+            name: string;
+            address: string | null;
+            phone: string | null;
+            receipt_header: string | null;
+            receipt_footer: string | null;
+        } | null;
     };
 }
 
@@ -41,9 +48,15 @@ export default function Receipt({ transaction }: ReceiptProps) {
                     <div className="flex justify-center mb-2">
                         <Store className="w-8 h-8" />
                     </div>
-                    <h1 className="font-bold text-base uppercase">Toko ATK & Copy Center</h1>
-                    <p>Jl. Pendidikan No. 123, Jakarta</p>
-                    <p>Telp: 0812-3456-7890</p>
+                    <h1 className="font-bold text-base uppercase">{transaction.store?.name || 'Smart POS'}</h1>
+                    {transaction.store?.address && <p>{transaction.store.address}</p>}
+                    {transaction.store?.phone && <p>Telp: {transaction.store.phone}</p>}
+                    
+                    {transaction.store?.receipt_header && (
+                        <div className="mt-2 whitespace-pre-wrap">
+                            {transaction.store.receipt_header}
+                        </div>
+                    )}
                 </div>
 
                 <Separator className="my-2 border-dashed" />
@@ -83,9 +96,15 @@ export default function Receipt({ transaction }: ReceiptProps) {
 
                 <Separator className="my-2 border-dashed" />
 
-                <div className="text-center text-[10px] mt-4">
-                    <p>Terima kasih atas kunjungan Anda</p>
-                    <p>Barang yang sudah dibeli tidak dapat ditukar kecuali ada perjanjian.</p>
+                <div className="text-center text-[10px] mt-4 whitespace-pre-wrap">
+                    {transaction.store?.receipt_footer ? (
+                        transaction.store.receipt_footer
+                    ) : (
+                        <>
+                            <p>Terima kasih atas kunjungan Anda</p>
+                            <p>Barang yang sudah dibeli tidak dapat ditukar kecuali ada perjanjian.</p>
+                        </>
+                    )}
                 </div>
 
                 <style>{`

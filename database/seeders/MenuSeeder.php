@@ -95,12 +95,39 @@ class MenuSeeder extends Seeder
             'parent_id' => $settings->id,
         ]);
 
+        // GROUP: Manajemen Multi-Toko (Super Admin Only)
+        $multiStore = Menu::create([
+            'title' => 'Multi-Toko',
+            'icon' => 'Store',
+            'route' => '#',
+            'order' => 4,
+            'permission_name' => 'multi-store-view',
+        ]);
+
+        Menu::create([
+            'title' => 'Daftar Toko',
+            'icon' => 'MapPin',
+            'route' => '/stores',
+            'order' => 1,
+            'permission_name' => 'stores-view',
+            'parent_id' => $multiStore->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Katalog Global',
+            'icon' => 'Layers',
+            'route' => '/product-bank',
+            'order' => 2,
+            'permission_name' => 'product-bank-view',
+            'parent_id' => $multiStore->id,
+        ]);
+
         // GROUP: Data Master
         $masterData = Menu::create([
             'title' => 'Data Master',
             'icon' => 'Box',
             'route' => '#',
-            'order' => 4,
+            'order' => 5,
             'permission_name' => 'master-data-view',
         ]);
 
@@ -114,7 +141,7 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
-            'title' => 'Produk (ATK)',
+            'title' => 'Produk Toko',
             'icon' => 'Package',
             'route' => '/products',
             'order' => 2,
@@ -123,10 +150,19 @@ class MenuSeeder extends Seeder
         ]);
 
         Menu::create([
+            'title' => 'Kelola Stok Toko',
+            'icon' => 'ClipboardList',
+            'route' => '/store-products',
+            'order' => 3,
+            'permission_name' => 'store-products-view',
+            'parent_id' => $masterData->id,
+        ]);
+
+        Menu::create([
             'title' => 'Layanan (Jasa)',
             'icon' => 'Printer',
             'route' => '/services',
-            'order' => 3,
+            'order' => 4,
             'permission_name' => 'services-view',
             'parent_id' => $masterData->id,
         ]);
@@ -135,7 +171,7 @@ class MenuSeeder extends Seeder
             'title' => 'Pemasok',
             'icon' => 'Users',
             'route' => '/suppliers',
-            'order' => 4,
+            'order' => 5,
             'permission_name' => 'suppliers-view',
             'parent_id' => $masterData->id,
         ]);

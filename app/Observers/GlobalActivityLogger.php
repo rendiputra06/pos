@@ -31,6 +31,11 @@ class GlobalActivityLogger
             ->causedBy(Auth::user())
             ->performedOn($model)
             ->withProperties($properties ?: $model->getAttributes())
+            ->tap(function($activity) {
+                if (Auth::check()) {
+                    $activity->store_id = Auth::user()->store_id;
+                }
+            })
             ->log("{$action} " . class_basename($model));
     }
 }

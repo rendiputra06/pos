@@ -60,6 +60,14 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('purchases', PurchaseController::class);
     Route::patch('/purchases/{purchase}/status', [PurchaseController::class, 'updateStatus'])->name('purchases.update-status');
 
+    // Multi-Store Management Routes
+    Route::resource('stores', \App\Http\Controllers\StoreController::class);
+    Route::post('stores/switch', [\App\Http\Controllers\StoreController::class, 'switchStore'])->name('stores.switch');
+    Route::resource('product-bank', \App\Http\Controllers\ProductBankController::class);
+    Route::resource('store-products', \App\Http\Controllers\StoreProductController::class);
+    Route::resource('stock-transfers', \App\Http\Controllers\StockTransferController::class);
+    Route::patch('/stock-transfers/{stock_transfer}/status', [\App\Http\Controllers\StockTransferController::class, 'updateStatus'])->name('stock-transfers.update-status');
+
     // POS Routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::get('/pos/receipt/{transaction}', [PosController::class, 'receipt'])->name('pos.receipt');
@@ -70,6 +78,9 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::get('/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
     Route::get('/reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');
     Route::get('/reports/export/sales', [ReportController::class, 'exportSales'])->name('reports.export.sales');
+    
+    // Cross-Store Report (Super Admin only)
+    Route::get('/reports/cross-store', [ReportController::class, 'crossStore'])->name('reports.cross-store');
 
     // Analytics API Routes
     Route::get('/api/analytics/dashboard', [AnalyticsController::class, 'dashboard'])->name('api.analytics.dashboard');
@@ -77,6 +88,7 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::get('/api/analytics/category-breakdown', [AnalyticsController::class, 'categoryBreakdown'])->name('api.analytics.category-breakdown');
     Route::get('/api/analytics/profit-loss', [AnalyticsController::class, 'profitLoss'])->name('api.analytics.profit-loss');
 });
+
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

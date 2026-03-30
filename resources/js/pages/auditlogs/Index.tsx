@@ -1,10 +1,17 @@
 import React from 'react';
-import { Head, usePage, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { type BreadcrumbItem } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Activity {
   id: number;
@@ -13,6 +20,7 @@ interface Activity {
   causer: { name: string } | null;
   properties: Record<string, any>;
   subject_type: string | null;
+  store: { name: string } | null;
 }
 
 interface Props {
@@ -22,6 +30,8 @@ interface Props {
     last_page: number;
     links: { url: string | null; label: string; active: boolean }[];
   };
+  stores: { id: number; name: string }[];
+  filters: { store_id?: string };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -31,17 +41,42 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ];
 
-export default function AuditLogIndex({ logs }: Props) {
+export default function AuditLogIndex({ logs, stores, filters }: Props) {
+    const handleStoreChange = (storeId: string) => {
+        router.get('/audit-logs', { store_id: storeId }, { 
+            preserveState: true,
+            preserveScroll: true
+        });
+    };
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Audit Log" />
       <div className="flex-1 p-4 md:p-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-2xl font-bold">Audit Log</CardTitle>
-            <p className="text-muted-foreground text-sm">
-              User activity history in the system
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <CardTitle className="text-2xl font-bold">Audit Log</CardTitle>
+                    <p className="text-muted-foreground text-sm">
+                    Riwayat aktivitas pengguna di dalam sistem
+                    </p>
+                </div>
+                {stores.length > 0 && (
+                    <div className="w-full md:w-64">
+                        <Select value={filters.store_id || 'all'} onValueChange={handleStoreChange}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Semua Toko" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Toko</SelectItem>
+                                {stores.map(store => (
+                                    <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </div>
           </CardHeader>
 
           <Separator />
@@ -49,7 +84,7 @@ export default function AuditLogIndex({ logs }: Props) {
           <CardContent className="pt-6 space-y-4">
             {/* List Logs */}
             {logs.data.length === 0 ? (
-              <p className="text-muted-foreground text-center">No activity logs.</p>
+              <p className="text-muted-foreground text-center py-10">Tidak ada log aktivitas.</p>
             ) : (
               logs.data.map((log) => (
                 <div
@@ -60,7 +95,8 @@ export default function AuditLogIndex({ logs }: Props) {
                     {log.description}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {log.causer?.name ?? 'System'} • {new Date(log.created_at).toLocaleString()}
+                    {log.causer?.name ?? 'System'} • {new Date(log.created_at).toLocaleString('id-ID')}
+                    {log.store && <span className="text-primary font-semibold"> • {log.store.name}</span>}
                     {log.subject_type ? ` • ${log.subject_type.split('\\').pop()}` : ''}
                   </div>
                   {log.properties && Object.keys(log.properties).length > 0 && (
