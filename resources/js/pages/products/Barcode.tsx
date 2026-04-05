@@ -11,15 +11,27 @@ interface Product {
   sku: string;
   barcode: string | null;
   price: string;
+  has_variants: boolean;
+}
+
+interface ProductVariant {
+  id: number;
+  sku: string;
+  barcode: string | null;
+  price: number;
+  formatted_combination: string;
+  combination: Record<string, string>;
+  thumbnail_url?: string | null;
 }
 
 interface Props {
   product: Product;
+  variant?: ProductVariant;
 }
 
 type Variation = 'standard' | 'minimalist' | 'retail' | 'compact' | 'shelf';
 
-export default function ProductBarcode({ product }: Props) {
+export default function ProductBarcode({ product, variant }: Props) {
   const [variation, setVariation] = useState<Variation>('standard');
 
   const formatCurrency = (amount: string | number) => {
@@ -30,7 +42,22 @@ export default function ProductBarcode({ product }: Props) {
     }).format(Number(amount));
   };
 
-  const barcodeValue = product.barcode || product.sku;
+  // Use variant data if available, otherwise use product data
+  const displayData = variant ? {
+    name: `${product.name} - ${variant.formatted_combination}`,
+    sku: variant.sku,
+    barcode: variant.barcode,
+    price: variant.price,
+    thumbnail_url: variant.thumbnail_url,
+  } : {
+    name: product.name,
+    sku: product.sku,
+    barcode: product.barcode,
+    price: Number(product.price),
+    thumbnail_url: null,
+  };
+
+  const barcodeValue = displayData.barcode || displayData.sku;
 
   const variations: { id: Variation; name: string; icon: any; description: string }[] = [
     { id: 'standard', name: 'Standard', icon: LayoutGrid, description: 'Lengkap dengan nama toko & SKU' },
@@ -46,29 +73,29 @@ export default function ProductBarcode({ product }: Props) {
         return (
           <div className="bg-white p-2 text-center w-[80mm] flex flex-col items-center justify-center space-y-2">
             <Barcode value={barcodeValue} width={2} height={40} fontSize={12} margin={0} />
-            <div className="text-xl font-black text-black">{formatCurrency(product.price)}</div>
+            <div className="text-xl font-black text-black">{formatCurrency(displayData.price)}</div>
           </div>
         );
       
       case 'retail':
         return (
           <div className="bg-white p-4 text-center w-[80mm] space-y-3">
-             <div className="text-xs font-bold uppercase line-clamp-1">{product.name}</div>
+             <div className="text-xs font-bold uppercase line-clamp-1">{displayData.name}</div>
              <div className="flex justify-center border-y py-2 border-slate-100">
                 <Barcode value={barcodeValue} width={1.8} height={50} fontSize={10} margin={0} />
              </div>
-             <div className="text-xl font-black text-primary">{formatCurrency(product.price)}</div>
+             <div className="text-xl font-black text-primary">{formatCurrency(displayData.price)}</div>
           </div>
         );
 
       case 'compact':
         return (
           <div className="bg-white p-1 text-center w-[50mm] space-y-1">
-             <div className="text-[10px] font-bold truncate px-2">{product.name}</div>
+             <div className="text-[10px] font-bold truncate px-2">{displayData.name}</div>
              <div className="flex justify-center scale-90 origin-top">
                 <Barcode value={barcodeValue} width={1.2} height={35} fontSize={8} margin={0} />
              </div>
-             <div className="text-sm font-black text-black">{formatCurrency(product.price)}</div>
+             <div className="text-sm font-black text-black">{formatCurrency(displayData.price)}</div>
           </div>
         );
 
@@ -77,11 +104,11 @@ export default function ProductBarcode({ product }: Props) {
           <div className="bg-white p-4 text-left w-[80mm] space-y-4 border-l-8 border-primary">
              <div className="space-y-1">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Nama Produk</div>
-                <div className="text-sm font-black uppercase leading-tight line-clamp-2 h-10">{product.name}</div>
+                <div className="text-sm font-black uppercase leading-tight line-clamp-2 h-10">{displayData.name}</div>
              </div>
              <div className="flex items-end justify-between gap-2">
                 <div className="text-3xl font-black text-primary tracking-tighter">
-                   {formatCurrency(product.price)}
+                   {formatCurrency(displayData.price)}
                 </div>
                 <div className="scale-75 origin-bottom-right">
                    <Barcode value={barcodeValue} width={1} height={30} fontSize={8} margin={0} />
@@ -96,8 +123,8 @@ export default function ProductBarcode({ product }: Props) {
             <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">POS HERO ATK</div>
             
             <div className="space-y-1">
-               <h2 className="text-sm font-bold uppercase line-clamp-2 leading-tight">{product.name}</h2>
-               <p className="text-[10px] font-mono font-bold text-slate-400">{product.sku}</p>
+               <h2 className="text-sm font-bold uppercase line-clamp-2 leading-tight">{displayData.name}</h2>
+               <p className="text-[10px] font-mono font-bold text-slate-400">{displayData.sku}</p>
             </div>
 
             <div className="py-2 border-y border-slate-100 flex justify-center overflow-hidden">
@@ -113,7 +140,7 @@ export default function ProductBarcode({ product }: Props) {
 
             <div className="pt-2">
                <div className="text-2xl font-black text-primary">
-                  {formatCurrency(product.price)}
+                  {formatCurrency(displayData.price)}
                </div>
             </div>
           </div>
@@ -123,12 +150,12 @@ export default function ProductBarcode({ product }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 print:bg-white print:p-0">
-      <Head title={`Cetak Barcode - ${product.name}`} />
+      <Head title={`Cetak Barcode - ${displayData.name}`} />
       
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 print:block">
         {/* Sidebar Controls */}
         <div className="lg:col-span-1 space-y-6 print:hidden">
-          <Link href="/products">
+          <Link href={variant ? `/products/${product.id}/variants` : "/products"}>
             <Button variant="ghost" className="gap-2 mb-2">
                <ChevronLeft className="size-4" /> Kembali
             </Button>

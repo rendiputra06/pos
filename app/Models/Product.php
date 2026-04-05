@@ -3,9 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class Product extends Model
+class Product extends Model implements HasMedia
 {
+    use InteractsWithMedia;
+
     protected $fillable = [
         'category_id',
         'name',
@@ -16,10 +21,331 @@ class Product extends Model
         'stock',
         'unit',
         'image',
+        'has_variants',
+    ];
+
+    protected $appends = [
+        'thumbnail_url',
+        'medium_url',
+        'original_url',
+        'primary_image_url',
+        'total_stock',
+        'min_price',
+        'max_price',
+        'average_price',
+    ];
+
+    protected $casts = [
+        'has_variants' => 'boolean',
     ];
 
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function variantGroups()
+    {
+        return $this->hasMany(VariantGroup::class)->orderBy('display_order');
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('display_order');
+    }
+
+    public function variantsWithImages()
+    {
+        return $this->hasMany(ProductVariant::class)
+            ->whereHas('media', function ($query) {
+                $query->where('collection_name', 'variant_images');
+            })
+            ->orderBy('display_order');
+    }
+
+    public function primaryVariant()
+    {
+        return $this->hasOne(ProductVariant::class)->orderBy('display_order');
+    }
+
+    public function activeVariants()
+    {
+        return $this->hasMany(ProductVariant::class)
+            ->where('is_active', true)
+            ->orderBy('display_order');
+    }
+
+    /**
+     * Get total stock across all variants
+     */
+    public function getTotalStockAttribute()
+    {
+        if (!$this->has_variants) {
+            return $this->stock;
+        }
+
+        if (array_key_exists('total_stock', $this->attributes)) {
+            return $this->attributes['total_stock'];
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->sum('stock');
+        }
+
+        return $this->variants()->sum('stock');
+    }
+
+    /**
+     * Get low stock variants count
+     */
+    public function getLowStockVariantsCountAttribute()
+    {
+        if ($this->has_variants) {
+            return $this->variants()->where('stock', '<=', 5)->count();
+        }
+
+        return $this->stock <= 5 ? 1 : 0;
+    }
+
+    /**
+     * Check if any variant is out of stock
+     */
+    public function getHasOutOfStockVariantsAttribute()
+    {
+        if ($this->has_variants) {
+            return $this->variants()->where('stock', '=', 0)->exists();
+        }
+
+        return $this->stock == 0;
+    }
+
+    /**
+     * Get available variants (in stock)
+     */
+    public function getAvailableVariantsAttribute()
+    {
+        if ($this->has_variants) {
+            return $this->variants()->where('stock', '>', 0)->where('is_active', true)->get();
+        }
+
+        return $this->stock > 0 ? collect([$this]) : collect([]);
+    }
+
+    /**
+     * Update variant stock
+     */
+    public function updateVariantStock($variantId, $quantity, $operation = 'set')
+    {
+        $variant = $this->variants()->findOrFail($variantId);
+
+        switch ($operation) {
+            case 'add':
+                $variant->increment('stock', $quantity);
+                break;
+            case 'subtract':
+                $newStock = $variant->stock - $quantity;
+                if ($newStock < 0) {
+                    throw new \Exception('Insufficient stock');
+                }
+                $variant->update(['stock' => $newStock]);
+                break;
+            case 'set':
+            default:
+                $variant->update(['stock' => max(0, $quantity)]);
+                break;
+        }
+
+        return $variant->fresh();
+    }
+
+    /**
+     * Get min price across all variants
+     */
+    public function getMinPriceAttribute()
+    {
+        if (!$this->has_variants) {
+            return $this->price;
+        }
+
+        if (array_key_exists('min_price', $this->attributes)) {
+            return $this->attributes['min_price'];
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->min('price');
+        }
+
+        return $this->variants()->min('price');
+    }
+
+    /**
+     * Get max price across all variants
+     */
+    public function getMaxPriceAttribute()
+    {
+        if (!$this->has_variants) {
+            return $this->price;
+        }
+
+        if (array_key_exists('max_price', $this->attributes)) {
+            return $this->attributes['max_price'];
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->max('price');
+        }
+
+        return $this->variants()->max('price');
+    }
+
+    /**
+     * Get average price across all variants
+     */
+    public function getAveragePriceAttribute()
+    {
+        if (!$this->has_variants) {
+            return $this->price;
+        }
+
+        if (array_key_exists('average_price', $this->attributes)) {
+            return $this->attributes['average_price'];
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->avg('price');
+        }
+
+        return $this->variants()->avg('price');
+    }
+
+    /**
+     * Update variant prices with rules
+     */
+    public function updateVariantPrices($rules = [])
+    {
+        if (!$this->has_variants) {
+            return;
+        }
+
+        $variants = $this->variants()->get();
+
+        foreach ($variants as $variant) {
+            $newPrice = $variant->price;
+
+            // Apply size-based pricing rules
+            if (isset($rules['size']) && isset($variant->combination['size'])) {
+                $size = $variant->combination['size'];
+                if (isset($rules['size'][$size])) {
+                    $newPrice = $rules['size'][$size];
+                }
+            }
+
+            // Apply percentage increase/decrease
+            if (isset($rules['percentage'])) {
+                $newPrice = $newPrice * (1 + ($rules['percentage'] / 100));
+            }
+
+            // Apply fixed amount increase/decrease
+            if (isset($rules['fixed'])) {
+                $newPrice = $newPrice + $rules['fixed'];
+            }
+
+            // Ensure price doesn't go below cost price
+            $newPrice = max($newPrice, $variant->cost_price);
+
+            $variant->update(['price' => round($newPrice, 2)]);
+        }
+    }
+
+    /**
+     * Get profit margin for variant or product
+     */
+    public function getProfitMargin($variantId = null)
+    {
+        if ($variantId) {
+            $variant = $this->variants()->find($variantId);
+            if (!$variant) return 0;
+
+            return (($variant->price - $variant->cost_price) / $variant->price) * 100;
+        }
+
+        if ($this->has_variants) {
+            $avgPrice = $this->variants()->avg('price');
+            $avgCost = $this->variants()->avg('cost_price');
+            return (($avgPrice - $avgCost) / $avgPrice) * 100;
+        }
+
+        return (($this->price - $this->cost_price) / $this->price) * 100;
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this
+            ->addMediaConversion('thumbnail')
+            ->width(150)
+            ->height(150)
+            ->sharpen(10);
+
+        $this
+            ->addMediaConversion('medium')
+            ->width(400)
+            ->height(400)
+            ->sharpen(10);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('product_images')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
+            ->singleFile()
+            ->withResponsiveImages();
+    }
+
+    public function getThumbnailUrlAttribute()
+    {
+        return $this->getFirstMediaUrl('product_images', 'thumbnail') ?: null;
+    }
+
+    public function getMediumUrlAttribute()
+    {
+        return $this->getFirstMediaUrl('product_images', 'medium') ?: null;
+    }
+
+    public function getOriginalUrlAttribute()
+    {
+        return $this->getFirstMediaUrl('product_images') ?: null;
+    }
+
+    public function getSingleVariantImageUrlAttribute()
+    {
+        $variantImageCount = $this->attributes['variant_images_count'] ?? null;
+
+        if ($variantImageCount !== null && (int) $variantImageCount !== 1) {
+            return null;
+        }
+
+        if ($this->relationLoaded('variantsWithImages')) {
+            return $this->variantsWithImages->first()?->thumbnail_url;
+        }
+
+        $variant = $this->variantsWithImages()->with('media')->first();
+        return $variant?->thumbnail_url;
+    }
+
+    public function getPrimaryImageUrlAttribute()
+    {
+        if ($this->thumbnail_url) {
+            return $this->thumbnail_url;
+        }
+
+        if ($this->single_variant_image_url) {
+            return $this->single_variant_image_url;
+        }
+
+        if ($this->relationLoaded('primaryVariant')) {
+            return $this->primaryVariant?->thumbnail_url;
+        }
+
+        return $this->primaryVariant?->thumbnail_url;
     }
 }
