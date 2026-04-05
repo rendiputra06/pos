@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ProductController extends Controller
 {
@@ -212,6 +213,88 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product deleted successfully.',
+        ]);
+    }
+
+    /**
+     * Get products with low stock.
+     *
+     * GET /api/mobile/v1/products/low-stock
+     */
+    public function lowStock(Request $request)
+    {
+        $threshold = $request->threshold ?? 5;
+        
+        $products = Product::with(['category', 'media', 'primaryVariant.media'])
+            ->withCount('variants')
+            ->withSum('variants as total_stock', 'stock')
+            ->where(function ($query) use ($threshold) {
+                $query->where(function ($q) use ($threshold) {
+                    $q->where('has_variants', false)
+                      ->where('stock', '<=', $threshold);
+                })->orWhere(function ($q) use ($threshold) {
+                    $q->where('has_variants', true)
+                      ->whereHas('variants', function ($v) use ($threshold) {
+                          $v->where('stock', '<=', $threshold);
+                      });
+                });
+            })
+            ->latest()
+            ->paginate($request->per_page ?? 15);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ProductResource::collection($products),
+            'meta'    => [
+                'current_page' => $products->currentPage(),
+                'last_page'    => $products->lastPage(),
+                'per_page'     => $products->perPage(),
+                'total'        => $products->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Upload an image to product gallery.
+     *
+     * POST /api/mobile/v1/products/{product}/images
+     */
+    public function uploadImage(Request $request, Product $product)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,webp|max:2048',
+        ]);
+
+        $product->addMediaFromRequest('image')
+            ->toMediaCollection('product_images');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Image uploaded successfully.',
+            'data'    => new ProductResource($product->fresh(['media'])),
+        ]);
+    }
+
+    /**
+     * Remove an image from product gallery.
+     *
+     * DELETE /api/mobile/v1/products/{product}/images/{media}
+     */
+    public function removeImage(Product $product, Media $media)
+    {
+        // Security check: ensure media belongs to product
+        if ($media->model_id !== $product->id || $media->model_type !== get_class($product)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Image not found for this product.',
+            ], 404);
+        }
+
+        $media->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Image removed successfully.',
         ]);
     }
 }

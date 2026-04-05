@@ -12,7 +12,13 @@
 2. [Dashboard](#2-dashboard)
 3. [Categories](#3-categories)
 4. [Products](#4-products)
+   - [4.7 Low Stock Products](#47-low-stock-products)
+   - [4.8 Product Images](#48-product-images)
 5. [Product Variants](#5-product-variants)
+   - [5.5 Variant Groups](#55-variant-groups)
+   - [5.6 Variant Group Options](#56-variant-group-options)
+   - [5.7 Auto-generate Variants](#57-auto-generate-variants)
+   - [5.8 Variant Images](#58-variant-images)
 6. [Suppliers](#6-suppliers)
 7. [Purchases (Stock In)](#7-purchases-stock-in)
 8. [Error Responses](#8-error-responses)
@@ -384,16 +390,45 @@ Same body fields as Create. For `multipart/form-data`, add `_method=PUT`.
 
 ### 4.6 Delete Product
 
-**Endpoint**: `DELETE /products/{id}`  
+...
+
+---
+
+### 4.7 Low Stock Products
+
+**Endpoint**: `GET /products/low-stock`  
 **Auth required**: Yes
 
-**Success Response** `200 OK`:
-```json
-{
-  "success": true,
-  "message": "Product deleted successfully."
-}
-```
+Returns a list of products where the stock (or any variant stock) is at or below the threshold.
+
+**Query Parameters**:
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `threshold` | int | 5 | Max stock level to be considered "low" |
+| `per_page` | int | 15 | Pagination size |
+
+**Success Response** `200 OK`: Same structure as [List Products](#41-list-products).
+
+---
+
+### 4.8 Product Images
+
+#### 4.8.1 Upload Image
+**Endpoint**: `POST /products/{id}/images`  
+**Auth required**: Yes  
+**Content-Type**: `multipart/form-data`
+
+**Request Body**:
+| Field | Type | Required |
+|---|---|---|
+| `image` | file | ✅ |
+
+#### 4.8.2 Remove Image
+**Endpoint**: `DELETE /products/{id}/images/{media_id}`  
+**Auth required**: Yes
+
+Removes a specific media item from the product gallery.
+
 
 ---
 
@@ -504,16 +539,44 @@ Same body fields as Create. For `multipart/form-data`, add `_method=PUT`.
 
 ### 5.4 Delete Variant
 
-**Endpoint**: `DELETE /products/{product_id}/variants/{variant_id}`  
+...
+
+---
+
+### 5.5 Variant Groups
+
+#### 5.5.1 List Groups
+**Endpoint**: `GET /products/{pid}/variant-groups`
+
+#### 5.5.2 Create Group
+**Endpoint**: `POST /products/{pid}/variant-groups`  
+**Body**: `{"name": "Size", "type": "size", "is_required": true}`  
+*Types*: `size`, `color`, `material`. Creating a group automatically adds system-standard options for that type.
+
+---
+
+### 5.6 Variant Group Options
+
+#### 5.6.1 Add Option
+**Endpoint**: `POST /products/{pid}/variant-groups/{gid}/options`  
+**Body**: `{"value": "XL", "display_value": "Extra Large", "color_code": "#FF0000"}`
+
+---
+
+### 5.7 Auto-generate Variants
+
+**Endpoint**: `POST /products/{pid}/generate-variants`  
 **Auth required**: Yes
 
-**Success Response** `200 OK`:
-```json
-{
-  "success": true,
-  "message": "Variant deleted successfully."
-}
-```
+Automatically creates all possible product variations based on the existing active variant groups and options. Skips existing combinations.
+
+---
+
+### 5.8 Variant Images
+
+**Endpoint**: `POST /products/{pid}/variants/{vid}/image`  
+**Content-Type**: `multipart/form-data`
+
 
 ---
 

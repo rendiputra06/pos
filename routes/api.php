@@ -37,15 +37,34 @@ Route::prefix('mobile/v1')->group(function () {
         Route::get('categories', [CategoryController::class, 'index']);
 
         // Products
+        Route::get('products/low-stock', [ProductController::class, 'lowStock']);
         Route::get('products/barcode/{code}', [ProductController::class, 'findByBarcode']);
+        Route::post('products/{product}/images', [ProductController::class, 'uploadImage']);
+        Route::delete('products/{product}/images/{media}', [ProductController::class, 'removeImage']);
         Route::apiResource('products', ProductController::class);
 
-        // Variants (nested under products)
+        // Variants & Variant Categories (nested under products)
         Route::prefix('products/{product}')->group(function () {
+            // Variant Groups & Options
+            Route::get('variant-groups', [VariantController::class, 'indexGroups']);
+            Route::post('variant-groups', [VariantController::class, 'storeGroup']);
+            Route::put('variant-groups/{group}', [VariantController::class, 'updateGroup']);
+            Route::delete('variant-groups/{group}', [VariantController::class, 'destroyGroup']);
+            
+            Route::post('variant-groups/{group}/options', [VariantController::class, 'storeOption']);
+            Route::put('variant-groups/{group}/options/{option}', [VariantController::class, 'updateOption']);
+            Route::delete('variant-groups/{group}/options/{option}', [VariantController::class, 'destroyOption']);
+
+            // Auto-generation
+            Route::post('generate-variants', [VariantController::class, 'generateVariants']);
+
+            // Individual Variants
             Route::get('variants', [VariantController::class, 'index']);
             Route::post('variants', [VariantController::class, 'store']);
             Route::put('variants/{variant}', [VariantController::class, 'update']);
             Route::delete('variants/{variant}', [VariantController::class, 'destroy']);
+            Route::post('variants/{variant}/image', [VariantController::class, 'uploadVariantImage']);
+            Route::delete('variants/{variant}/image', [VariantController::class, 'removeVariantImage']);
         });
 
         // Suppliers
