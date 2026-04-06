@@ -19,10 +19,13 @@ import {
   Instagram,
   Twitter,
   Package,
-  BarChart3
+  BarChart3,
+  MapPin,
+  Phone,
+  TrendingUp
 } from 'lucide-react';
 
-export default function Welcome({ products: initialProducts, services: initialServices }: { products: any[], services: any[] }) {
+export default function Welcome({ products: initialProducts, services: initialServices, featuredStores, storeStats }: { products: any[], services: any[], featuredStores?: any[], storeStats?: any }) {
   const { auth, setting } = usePage<SharedData>().props;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -67,6 +70,7 @@ export default function Welcome({ products: initialProducts, services: initialSe
             <a href="#products" className="hover:text-[var(--primary)] transition-colors">Produk ATK</a>
             <a href="#services" className="hover:text-[var(--primary)] transition-colors">Layanan Jasa</a>
             <a href="#features" className="hover:text-[var(--primary)] transition-colors">Keunggulan</a>
+            <Link href="/stores" className="hover:text-[var(--primary)] transition-colors">Direktori Toko</Link>
           </nav>
 
           <div className="flex items-center gap-4">
@@ -216,19 +220,210 @@ export default function Welcome({ products: initialProducts, services: initialSe
           </div>
       </section>
 
+      {/* Featured Stores Section */}
+      <section className="py-24 bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-black uppercase tracking-widest">
+              <Star className="w-4 h-4 fill-current" /> Toko Unggulan
+            </div>
+            <h2 className="text-5xl font-black tracking-tighter">TOKO-TOKO YANG TELAH BERGABUNG</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto font-medium text-lg">
+              Temukan toko-toko terpercaya yang menggunakan sistem KasirKu untuk kemudahan bertransaksi
+            </p>
+          </div>
+
+          {/* Store Stats */}
+          {storeStats && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">{storeStats.total_stores}</h3>
+                <p className="text-slate-600 text-sm font-bold uppercase tracking-wider">Toko Aktif</p>
+              </div>
+              
+              <div className="bg-white rounded-2xl p-6 shadow-sm border text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">{storeStats.total_products?.toLocaleString() || 0}</h3>
+                <p className="text-slate-600 text-sm font-bold uppercase tracking-wider">Produk Tersedia</p>
+              </div>
+              
+              <div className="bg-white rounded-2xl p-6 shadow-sm border text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="w-6 h-6 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">{storeStats.total_transactions?.toLocaleString() || 0}</h3>
+                <p className="text-slate-600 text-sm font-bold uppercase tracking-wider">Transaksi (30 hari)</p>
+              </div>
+              
+              <div className="bg-white rounded-2xl p-6 shadow-sm border text-center">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="w-6 h-6 text-orange-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-1">{storeStats.total_revenue ? formatPrice(storeStats.total_revenue) : 'Rp 0'}</h3>
+                <p className="text-slate-600 text-sm font-bold uppercase tracking-wider">Total Revenue</p>
+              </div>
+            </div>
+          )}
+
+          {/* Featured Stores Grid */}
+          {featuredStores && featuredStores.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {featuredStores.map((store: any) => (
+                <div key={store.id} className="bg-white rounded-3xl p-8 shadow-sm border hover:shadow-xl transition-all duration-300 group">
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 mb-2">{store.name}</h3>
+                      <div className="flex items-center gap-2 text-slate-500 text-sm">
+                        <MapPin className="w-4 h-4" />
+                        <span className="truncate max-w-[200px]">{store.address}</span>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-black uppercase flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-current" />
+                      Featured
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <div className="text-lg font-black text-slate-900">{store.store_products_count || 0}</div>
+                      <div className="text-xs text-slate-500 font-bold uppercase">Produk</div>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <div className="text-lg font-black text-slate-900">{store.transactions_count || 0}</div>
+                      <div className="text-xs text-slate-500 font-bold uppercase">Transaksi</div>
+                    </div>
+                  </div>
+                  
+                  {store.phone && (
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-6">
+                      <Phone className="w-4 h-4" />
+                      <span>{store.phone}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-3">
+                    <Link href={`/stores/${store.slug}`} className="flex-1">
+                      <Button className="w-full h-12 rounded-xl font-bold text-sm">
+                        Lihat Toko
+                      </Button>
+                    </Link>
+                    <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl">
+                      <Heart className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <MapPin className="w-10 h-10 text-slate-400" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-4">Belum Ada Toko Unggulan</h3>
+              <p className="text-slate-500 mb-8 max-w-md mx-auto">
+                Jadilah yang pertama bergabung dengan sistem KasirKu dan dapatkan kesempatan untuk ditampilkan di sini!
+              </p>
+              <Link href="/login">
+                <Button size="lg" className="rounded-full px-8">
+                  Daftarkan Toko Anda
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {/* CTA to Store Directory */}
+          <div className="text-center">
+            <Link href="/stores" className="inline-flex items-center gap-2 text-[var(--primary)] font-black border-b-2 border-[var(--primary)] pb-1 hover:opacity-80 transition-opacity text-lg">
+              Lihat Semua Toko
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Success Stories Section */}
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-black uppercase tracking-widest">
+              <TrendingUp className="w-4 h-4 fill-current" /> Success Stories
+            </div>
+            <h2 className="text-5xl font-black tracking-tighter">KISAH SUKSI PEMILIK TOKO</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto font-medium text-lg">
+              Lihat bagaimana KasirKu telah membantu toko-toko berkembang dan meningkatkan efisiensi operasional
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Toko Karya Mandiri",
+                type: "ATK & Fotocopy",
+                location: "Jakarta Pusat",
+                story: "Setelah menggunakan KasirKu, penjualan meningkat 40% dan stok management jadi lebih mudah.",
+                growth: "+40%",
+                image: "🏪"
+              },
+              {
+                name: "Cahaya Stationery",
+                type: "Alat Tulis Sekolah",
+                location: "Bandung",
+                story: "Sistem harga bertingkat untuk jasa fotocopy sangat membantu meningkatkan profit margin.",
+                growth: "+35%",
+                image: "📚"
+              },
+              {
+                name: "Mitra Print",
+                type: "Digital Printing",
+                location: "Surabaya",
+                story: "Multi-store management memungkinkan kami mengelola 3 cabang dari satu dashboard.",
+                growth: "+60%",
+                image: "🖨️"
+              }
+            ].map((story, i) => (
+              <div key={i} className="bg-slate-50 rounded-3xl p-8 text-center group hover:bg-slate-100 transition-colors">
+                <div className="text-6xl mb-6">{story.image}</div>
+                <div className="bg-green-100 text-green-700 inline-block px-3 py-1 rounded-full text-sm font-black mb-4">
+                  {story.growth} Pertumbuhan
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">{story.name}</h3>
+                <p className="text-slate-500 text-sm mb-4">{story.type} • {story.location}</p>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">{story.story}</p>
+                <Button variant="outline" size="sm" className="rounded-full">
+                  Baca Selengkapnya
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA section */}
       <section className="container mx-auto px-4 py-32 text-center">
           <div className="bg-slate-900 rounded-[50px] p-20 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/20 to-transparent"></div>
                 <h2 className="text-5xl font-black mb-8 relative tracking-tighter">SIAP MODERNISASI TOKO ANDA?</h2>
                 <p className="text-slate-400 mb-12 max-w-xl mx-auto relative font-medium text-lg">
-                    Gabung dengan ratusan pemilik toko yang telah menggunakan KasirKu untuk mempermudah operasional harian.
+                    Gabung dengan {storeStats?.total_stores || 'ratusan'} pemilik toko yang telah menggunakan KasirKu untuk mempermudah operasional harian.
                 </p>
-                <Link href="/login" className="relative">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center relative">
+                  <Link href="/login">
                     <Button size="lg" className="h-16 px-16 text-lg rounded-full font-black uppercase italic tracking-widest bg-[var(--primary)] text-white border-0 hover:scale-105 transition-transform shadow-2xl shadow-[var(--primary)]/40">
                         Login Ke Sistem
                     </Button>
-                </Link>
+                  </Link>
+                  <Link href="/stores">
+                    <Button size="lg" variant="outline" className="h-16 px-16 text-lg rounded-full font-black border-2 bg-white text-slate-900 hover:bg-slate-50">
+                        Lihat Toko
+                    </Button>
+                  </Link>
+                </div>
           </div>
       </section>
 

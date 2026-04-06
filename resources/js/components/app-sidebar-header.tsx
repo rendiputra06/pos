@@ -4,6 +4,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 import AppearanceDropdown from '@/components/appearance-dropdown';
+import { StoreSwitcher } from '@/components/StoreSwitcher';
 
 export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: BreadcrumbItemType[] }) {
   const [lang, setLang] = useState('id');
@@ -16,8 +17,10 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
         <Breadcrumbs breadcrumbs={breadcrumbs} />
       </div>
 
-      {/* Right: Language + Theme */}
+      {/* Right: Store Switcher + Language + Theme */}
       <div className="flex items-center gap-4">
+        <StoreSwitcher />
+        
         <Select value={lang} onValueChange={setLang}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder="Language" />

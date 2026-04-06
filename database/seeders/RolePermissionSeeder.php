@@ -19,6 +19,8 @@ class RolePermissionSeeder extends Seeder
         // Buat role admin dan user jika belum ada
         $superAdmin = Role::firstOrCreate(['name' => 'super-admin']);
         $admin = Role::firstOrCreate(['name' => 'admin']);
+        $storeOwner = Role::firstOrCreate(['name' => 'store-owner']);
+        $storeManager = Role::firstOrCreate(['name' => 'store-manager']);
         $user = Role::firstOrCreate(['name' => 'user']);
 
         // Daftar permission berdasarkan menu structure
@@ -87,6 +89,18 @@ class RolePermissionSeeder extends Seeder
                 'product-bank-delete',
                 'store-products-view',
                 'store-products-edit',
+                'store-assignments-view',
+                'store-assignments-create',
+                'store-assignments-edit',
+                'store-assignments-delete',
+            ],
+            'Store Management' => [
+                'store-users-view',
+                'store-users-create',
+                'store-users-edit',
+                'store-users-delete',
+                'store-user-assign',
+                'store-user-unassign',
             ],
         ];
 
@@ -103,6 +117,20 @@ class RolePermissionSeeder extends Seeder
                 }
                 if (!$admin->hasPermissionTo($permission)) {
                     $admin->givePermissionTo($permission);
+                }
+                
+                // Assign store management permissions ke store-owner
+                if (in_array($group, ['Store Management', 'Multi-Store'])) {
+                    if (!$storeOwner->hasPermissionTo($permission)) {
+                        $storeOwner->givePermissionTo($permission);
+                    }
+                }
+                
+                // Assign basic store management ke store-manager
+                if (in_array($group, ['Store Management']) && !in_array($name, ['store-user-unassign'])) {
+                    if (!$storeManager->hasPermissionTo($permission)) {
+                        $storeManager->givePermissionTo($permission);
+                    }
                 }
             }
         }

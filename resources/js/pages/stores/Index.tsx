@@ -48,10 +48,18 @@ interface Props {
     from: number;
     to: number;
   };
+  filters?: {
+    search?: string;
+  };
 }
 
-export default function StoreIndex({ stores }: Props) {
-  const [search, setSearch] = useState('');
+export default function StoreIndex({ stores, filters }: Props) {
+  const [search, setSearch] = useState(filters?.search || '');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.get('/stores', { search: search || undefined }, { preserveState: true });
+  };
 
   const handleDelete = (id: number) => {
     router.delete(`/stores/${id}`, {
@@ -74,6 +82,32 @@ export default function StoreIndex({ stores }: Props) {
             </Button>
           </Link>
         </div>
+
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari nama toko..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="submit" variant="secondary">Cari</Button>
+          {search && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSearch('');
+                router.get('/stores', {}, { preserveState: true });
+              }}
+            >
+              Reset
+            </Button>
+          )}
+        </form>
 
         {/* List */}
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">

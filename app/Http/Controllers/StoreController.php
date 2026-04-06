@@ -13,11 +13,37 @@ class StoreController extends Controller
      * Display a listing of the stores.
      * Only accessible by Super Admin.
      */
-    public function index()
+    public function index(Request $request)
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat mengakses halaman ini.');
+        }
+
+        $query = Store::latest();
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('slug', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
         return Inertia::render('stores/Index', [
-            'stores' => Store::latest()->paginate(10),
+            'stores' => $query->paginate(10)->withQueryString(),
+            'filters' => $request->only(['search']),
         ]);
+    }
+
+    /**
+     * Check if user is authorized for store management.
+     */
+    private function isAuthorized(): bool
+    {
+        $user = auth()->user();
+        return $user->isSuperAdmin() || $user->isAdmin();
     }
 
     /**
@@ -25,6 +51,10 @@ class StoreController extends Controller
      */
     public function create()
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat membuat toko.');
+        }
+
         return Inertia::render('stores/Form');
     }
 
@@ -33,6 +63,10 @@ class StoreController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat membuat toko.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:stores,slug',
@@ -47,6 +81,14 @@ class StoreController extends Controller
             $validated['slug'] = Str::slug($validated['name']);
         }
 
+        // Ensure unique slug
+        $originalSlug = $validated['slug'];
+        $counter = 1;
+        while (Store::where('slug', $validated['slug'])->exists()) {
+            $validated['slug'] = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+
         Store::create($validated);
 
         return redirect()->route('stores.index')->with('success', 'Toko berhasil dibuat.');
@@ -57,6 +99,10 @@ class StoreController extends Controller
      */
     public function edit(Store $store)
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat mengedit toko.');
+        }
+
         return Inertia::render('stores/Form', [
             'store' => $store,
         ]);
@@ -67,6 +113,10 @@ class StoreController extends Controller
      */
     public function update(Request $request, Store $store)
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat mengupdate toko.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:stores,slug,' . $store->id,
@@ -81,6 +131,16 @@ class StoreController extends Controller
             $validated['slug'] = Str::slug($validated['name']);
         }
 
+        // Ensure unique slug (if changed and conflicts with another store)
+        if ($validated['slug'] !== $store->slug) {
+            $originalSlug = $validated['slug'];
+            $counter = 1;
+            while (Store::where('slug', $validated['slug'])->where('id', '!=', $store->id)->exists()) {
+                $validated['slug'] = $originalSlug . '-' . $counter;
+                $counter++;
+            }
+        }
+
         $store->update($validated);
 
         return redirect()->route('stores.index')->with('success', 'Toko berhasil diperbarui.');
@@ -91,6 +151,24 @@ class StoreController extends Controller
      */
     public function destroy(Store $store)
     {
+        if (!$this->isAuthorized()) {
+            abort(403, 'Hanya Super Admin atau Admin yang dapat menghapus toko.');
+        }
+
+        // Check if store has related data
+        $hasRelations = $store->users()->exists() ||
+                         $store->storeProducts()->exists() ||
+                         $store->transactions()->exists() ||
+                         $store->suppliers()->exists() ||
+                         $store->purchases()->exists() ||
+                         $store->expenses()->exists() ||
+                         $store->services()->exists();
+
+        if ($hasRelations) {
+            return redirect()->route('stores.index')
+                ->with('error', 'Toko tidak dapat dihapus karena masih memiliki data terkait (users, products, transactions, dll).');
+        }
+
         $store->delete();
 
         return redirect()->route('stores.index')->with('success', 'Toko berhasil dihapus.');

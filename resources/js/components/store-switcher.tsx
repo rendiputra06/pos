@@ -16,14 +16,19 @@ export function StoreSwitcher() {
     const { auth, stores } = usePage().props as any;
     const currentStore = auth.store;
 
-    if (!stores || stores.length === 0) {
-        if (!currentStore) return null;
+    // If no stores available but user has a current store, show it
+    if ((!stores || stores.length === 0) && currentStore) {
         return (
             <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground">
                 <Store className="size-4" />
                 <span>{currentStore.name}</span>
             </div>
         );
+    }
+
+    // If no stores and no current store, don't show switcher
+    if ((!stores || stores.length === 0) && !currentStore) {
+        return null;
     }
 
     const handleSwitch = (storeId: number) => {
@@ -70,7 +75,23 @@ export function MobileStoreSwitcher() {
     const { auth, stores } = usePage().props as any;
     const currentStore = auth.store;
 
-    if (!stores || stores.length === 0) return null;
+    // If no stores available but user has a current store, show it
+    if ((!stores || stores.length === 0) && currentStore) {
+        return (
+            <div className="space-y-2 px-4 py-2 border-t mt-auto">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Toko Aktif</p>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground">
+                    <Store className="size-4" />
+                    <span className="truncate font-medium">{currentStore.name}</span>
+                </div>
+            </div>
+        );
+    }
+
+    // If no stores and no current store, don't show switcher
+    if ((!stores || stores.length === 0) && !currentStore) {
+        return null;
+    }
 
     const handleSwitch = (storeId: number) => {
         router.post(route('stores.switch'), { store_id: storeId });

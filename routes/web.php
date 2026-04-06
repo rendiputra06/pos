@@ -18,16 +18,47 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\Api\PosApiController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\StoreDirectoryController;
+use App\Http\Controllers\StoreComparisonController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Api\AnalyticsController;
 
 Route::get('/', function () {
+    // Get featured stores (active stores with most transactions)
+    $featuredStores = \App\Models\Store::where('is_active', true)
+        ->withCount(['storeProducts', 'transactions' => function($query) {
+            $query->withoutGlobalScope(\App\Models\Scopes\StoreScope::class)
+                  ->where('created_at', '>=', now()->subDays(30));
+        }])
+        ->orderBy('transactions_count', 'desc')
+        ->limit(6)
+        ->get(['id', 'name', 'slug', 'address', 'phone', 'is_active']);
+
+    // Get store statistics
+    $storeStats = [
+        'total_stores' => \App\Models\Store::where('is_active', true)->count(),
+        'total_products' => \App\Models\StoreProduct::sum('stock'),
+        'total_transactions' => \App\Models\Transaction::withoutGlobalScope(\App\Models\Scopes\StoreScope::class)
+            ->where('created_at', '>=', now()->subDays(30))->count(),
+        'total_revenue' => \App\Models\Transaction::withoutGlobalScope(\App\Models\Scopes\StoreScope::class)
+            ->where('created_at', '>=', now()->subDays(30))->sum('grand_total'),
+    ];
+
     return Inertia::render('welcome', [
         'products' => \App\Models\Product::with('category')->latest()->limit(8)->get(),
         'services' => \App\Models\Service::with(['category', 'priceLevels'])->get(),
+        'featuredStores' => $featuredStores,
+        'storeStats' => $storeStats,
     ]);
 })->name('home');
+
+// Public Store Directory Routes - Must be after resource routes to avoid conflict
+Route::prefix('stores')->name('stores.public.')->group(function () {
+    Route::get('/search', [StoreDirectoryController::class, 'search'])->name('search');
+    Route::get('/directory', [StoreDirectoryController::class, 'index'])->name('index');
+    Route::get('/{slug}', [StoreDirectoryController::class, 'show'])->name('show');
+});
 
 Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::get('dashboard', function () {
@@ -40,6 +71,9 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('permissions', PermissionController::class);
     Route::resource('users', UserController::class);
     Route::put('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::get('/users/available-for-store/{store}', [UserController::class, 'getAvailableUsersForStore'])->name('users.available-for-store');
+    Route::get('/users/store-users/{store}', [UserController::class, 'getStoreUsers'])->name('users.store-users');
+    Route::post('/users/switch-store', [UserController::class, 'switchActiveStore'])->name('users.switch-store');
     Route::get('/settingsapp', [SettingAppController::class, 'edit'])->name('setting.edit');
     Route::post('/settingsapp', [SettingAppController::class, 'update'])->name('setting.update');
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
@@ -81,6 +115,10 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     
     // Cross-Store Report (Super Admin only)
     Route::get('/reports/cross-store', [ReportController::class, 'crossStore'])->name('reports.cross-store');
+    
+    // Store Comparison Reports
+    Route::get('/reports/store-comparison', [StoreComparisonController::class, 'index'])->name('reports.store-comparison');
+    Route::get('/reports/store-comparison/export', [StoreComparisonController::class, 'export'])->name('reports.store-comparison.export');
 
     // Analytics API Routes
     Route::get('/api/analytics/dashboard', [AnalyticsController::class, 'dashboard'])->name('api.analytics.dashboard');

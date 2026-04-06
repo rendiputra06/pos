@@ -23,7 +23,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Search, UserPlus, RotateCcw, Trash2, Edit2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, UserPlus, RotateCcw, Trash2, Edit2, Filter, ChevronLeft, ChevronRight, Store, Shield } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/id';
@@ -47,6 +47,22 @@ interface User {
   roles: {
     id: number;
     name: string;
+  }[];
+  store?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+  storeAssignments?: {
+    store: {
+      id: number;
+      name: string;
+      slug: string;
+    };
+    role: string;
+    assigned_at: string;
+    can_manage: boolean;
+    can_assign_users: boolean;
   }[];
 }
 
@@ -74,6 +90,7 @@ interface Props {
     id: number;
     name: string;
   }[];
+  canManageStores?: boolean;
 }
 
 function getInitials(name: string) {
@@ -85,7 +102,27 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-export default function UserIndex({ users, filters, roles }: Props) {
+function getRoleBadgeColor(role: string) {
+  switch (role) {
+    case 'super-admin': return 'bg-red-100 text-red-800 border-red-200';
+    case 'admin': return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'store-owner': return 'bg-purple-100 text-purple-800 border-purple-200';
+    case 'store-manager': return 'bg-blue-100 text-blue-800 border-blue-200';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+}
+
+function getRoleIcon(role: string) {
+  switch (role) {
+    case 'super-admin': return '👑';
+    case 'admin': return '🎯';
+    case 'store-owner': return '🏪';
+    case 'store-manager': return '👔';
+    default: return '👤';
+  }
+}
+
+export default function UserIndex({ users, filters, roles, canManageStores = false }: Props) {
   const [search, setSearch] = useState(filters.search || '');
 
   const debouncedSearch = useCallback(
@@ -191,6 +228,7 @@ export default function UserIndex({ users, filters, roles }: Props) {
                 <tr>
                   <th className="px-6 py-4 font-semibold">Pengguna</th>
                   <th className="px-6 py-4 font-semibold">Role</th>
+                  {canManageStores && <th className="px-6 py-4 font-semibold">Store Assignments</th>}
                   <th className="px-6 py-4 font-semibold hidden md:table-cell">Terdaftar</th>
                   <th className="px-6 py-4 font-semibold text-right">Aksi</th>
                 </tr>
@@ -198,7 +236,7 @@ export default function UserIndex({ users, filters, roles }: Props) {
               <tbody className="divide-y">
                 {users.data.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">
+                    <td colSpan={canManageStores ? 5 : 4} className="px-6 py-12 text-center text-muted-foreground italic">
                       Tidak ada data pengguna ditemukan.
                     </td>
                   </tr>
@@ -219,12 +257,33 @@ export default function UserIndex({ users, filters, roles }: Props) {
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
                           {user.roles.map((role) => (
-                            <Badge key={role.id} variant="secondary" className="px-2 py-0 text-[10px] uppercase tracking-wider font-bold">
-                              {role.name}
+                            <Badge key={role.id} variant="secondary" className={`px-2 py-0 text-[10px] uppercase tracking-wider font-bold ${getRoleBadgeColor(role.name)}`}>
+                              {getRoleIcon(role.name)} {role.name}
                             </Badge>
                           ))}
                         </div>
                       </td>
+                      {canManageStores && (
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {user.storeAssignments && user.storeAssignments.length > 0 ? (
+                              user.storeAssignments.map((assignment, index) => (
+                                <Badge key={index} variant="outline" className="text-xs border-2">
+                                  <Store className="w-3 h-3 mr-1" />
+                                  {assignment.store.name}
+                                </Badge>
+                              ))
+                            ) : user.store ? (
+                              <Badge variant="outline" className="text-xs border-2">
+                                <Store className="w-3 h-3 mr-1" />
+                                {user.store.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">No store</span>
+                            )}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4 hidden md:table-cell text-muted-foreground text-xs uppercase">
                         {dayjs(user.created_at).format('DD MMM YYYY')}
                       </td>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { type BreadcrumbItem } from '@/types';
-import { ChevronLeft, Save, Store, Printer } from 'lucide-react';
+import { ChevronLeft, Save, Store, Printer, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface StoreData {
   id: number;
@@ -32,7 +33,7 @@ interface Props {
 }
 
 export default function StoreForm({ store }: Props) {
-  const { data, setData, post, put, processing, errors } = useForm({
+  const { data, setData, post, put, processing, errors, clearErrors } = useForm({
     name: store?.name || '',
     slug: store?.slug || '',
     address: store?.address || '',
@@ -42,6 +43,18 @@ export default function StoreForm({ store }: Props) {
     receipt_footer: store?.receipt_footer || '',
   });
 
+  // Auto-generate slug from name when slug is empty
+  useEffect(() => {
+    if (!data.slug && data.name) {
+      const generatedSlug = data.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 50);
+      setData('slug', generatedSlug);
+    }
+  }, [data.name, data.slug]);
+
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Manajemen Toko', href: '/stores' },
     { title: store ? 'Edit Toko' : 'Tambah Toko', href: '#' },
@@ -49,6 +62,7 @@ export default function StoreForm({ store }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    clearErrors();
     if (store) {
       put(`/stores/${store.id}`);
     } else {
@@ -95,16 +109,28 @@ export default function StoreForm({ store }: Props) {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="slug">Slug / Kode (Opsional)</Label>
-                  <Input
-                    id="slug"
-                    value={data.slug}
-                    onChange={(e) => setData('slug', e.target.value)}
-                    placeholder="toko-berkah-c1"
-                    className={errors.slug ? 'border-destructive' : ''}
-                  />
-                  <p className="text-[10px] text-muted-foreground italic">Kosongkan untuk generate otomatis dari nama.</p>
-                  {errors.slug && <p className="text-xs text-destructive">{errors.slug}</p>}
+                  <Label htmlFor="slug">Slug / Kode URL</Label>
+                  <div className="relative">
+                    <Input
+                      id="slug"
+                      value={data.slug}
+                      onChange={(e) => setData('slug', e.target.value)}
+                      placeholder="toko-berkah-c1"
+                      className={errors.slug ? 'border-destructive pr-10' : 'pr-10'}
+                    />
+                    {!store && data.slug && (
+                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-green-500" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    {store ? 'Slug unik untuk URL toko. Kosongkan untuk generate otomatis.' : 'Auto-generate dari nama. Bisa diubah manual.'}
+                  </p>
+                  {errors.slug && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="size-4" />
+                      <AlertDescription className="text-xs">{errors.slug}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -121,8 +147,8 @@ export default function StoreForm({ store }: Props) {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="is_active">Status Toko</Label>
-                        <Select 
-                            value={data.is_active ? '1' : '0'} 
+                        <Select
+                            value={data.is_active ? '1' : '0'}
                             onValueChange={(checked) => setData('is_active', checked === '1')}
                         >
                             <SelectTrigger>
