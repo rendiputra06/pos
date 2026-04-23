@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Head } from '@inertiajs/react';
 import { Store, Printer } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 import { useEffect } from 'react';
 
 interface TransactionItem {
@@ -29,7 +30,6 @@ export default function Receipt({ transaction }: ReceiptProps) {
         setTimeout(() => window.print(), 500);
     }, []);
 
-    const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
     const formatDate = (date: string) => new Date(date).toLocaleString('id-ID');
 
     return (

@@ -11,6 +11,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/currency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -50,6 +51,7 @@ interface Product {
     stock: number;
     unit: string;
     has_variants: boolean;
+    has_multiple_units?: boolean;
     total_stock?: number;
     min_price?: number;
     max_price?: number;
@@ -71,6 +73,17 @@ interface Product {
         stock: number;
         combination: Record<string, string>;
         formatted_combination: string;
+    }[];
+    base_unit?: {
+        id: number;
+        name: string;
+        price: number;
+        stock: number;
+    };
+    active_units?: {
+        id: number;
+        name: string;
+        price: number;
     }[];
 }
 
@@ -153,13 +166,50 @@ export default function ProductIndex({ products, categories, filters }: Props) {
         router.reload({ only: ['products'] });
     };
 
-    const formatCurrency = (value?: number) => `Rp ${Number(value || 0).toLocaleString()}`;
-
     const renderProductPrice = (product: Product) => {
-        const minPrice = product.has_variants ? (product.min_price ?? 0) : product.price;
-        const maxPrice = product.has_variants ? (product.max_price ?? 0) : product.price;
+        // For multi-unit products, calculate min/max from active units
+        if (product.has_multiple_units && product.active_units && product.active_units.length > 0) {
+            const prices = product.active_units.map(u => u.price).filter(p => p > 0);
+            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+            const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+            if (minPrice === maxPrice) {
+                return (
+                    <div className="text-right">
+                        <span className="font-bold text-emerald-600">{formatCurrency(minPrice)}</span>
+                        <div className="text-muted-foreground text-xs">Semua satuan</div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="text-right">
+                    <div className="font-bold text-emerald-600">{formatCurrency(minPrice)}</div>
+                    <div className="text-muted-foreground text-xs">sampai {formatCurrency(maxPrice)}</div>
+                </div>
+            );
+        }
+
+        // For variant products, use min/max price from variants with price > 0
+        // If no valid variant prices, fall back to product's base price
+        const minPrice = product.has_variants
+            ? (product.min_price ?? product.price ?? 0)
+            : product.price;
+        const maxPrice = product.has_variants
+            ? (product.max_price ?? product.price ?? 0)
+            : product.price;
 
         if (product.has_variants) {
+            // No valid variant prices found (all variants have price 0 or no variants)
+            if (!product.min_price && !product.max_price) {
+                return (
+                    <div className="text-right">
+                        <span className="font-bold text-emerald-600">{formatCurrency(product.price)}</span>
+                        <div className="text-muted-foreground text-xs">Harga dasar produk</div>
+                    </div>
+                );
+            }
+
             if (minPrice === maxPrice) {
                 return (
                     <div className="text-right">
@@ -181,14 +231,23 @@ export default function ProductIndex({ products, categories, filters }: Props) {
     };
 
     const renderProductStock = (product: Product) => {
-        const stockValue = product.has_variants ? (product.total_stock ?? 0) : product.stock;
+        // For multi-unit products, use base unit stock
+        const stockValue = product.has_multiple_units
+            ? (product.base_unit?.stock ?? 0)
+            : product.has_variants
+                ? (product.total_stock ?? 0)
+                : product.stock;
+        const unitName = product.has_multiple_units
+            ? (product.base_unit?.name ?? product.unit)
+            : product.unit;
         const isLowStock = stockValue <= 5;
 
         return (
             <div className="flex flex-col items-center">
                 <span className={`font-bold ${isLowStock ? 'text-destructive' : 'text-foreground'}`}>
-                    {stockValue} {product.unit}
+                    {stockValue} {unitName}
                 </span>
+                {product.has_multiple_units && <span className="text-amber-600 text-[11px] tracking-wide uppercase">Multi satuan</span>}
                 {product.has_variants && <span className="text-muted-foreground text-[11px] tracking-wide uppercase">Total stok variant</span>}
                 {isLowStock && (
                     <span className="text-destructive flex items-center gap-0.5 text-[10px] font-bold uppercase">
@@ -356,7 +415,7 @@ export default function ProductIndex({ products, categories, filters }: Props) {
                                             <td className="px-6 py-4 text-center">{renderProductStock(product)}</td>
                                             <td className="px-6 py-4 text-right">{renderProductPrice(product)}</td>
                                             <td className="px-6 py-4">
-                                                <div className="flex justify-end gap-1 opacity-100 transition-opacity group-hover:opacity-100 md:opacity-0">
+                                                <div className="flex justify-end gap-1">
                                                     {product.has_variants && (
                                                         <Link href={`/products/${product.id}/variants`}>
                                                             <Button size="icon" variant="ghost" className="size-8" title="Manage Variants">

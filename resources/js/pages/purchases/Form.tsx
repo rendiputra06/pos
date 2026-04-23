@@ -27,6 +27,7 @@ import {
   BadgeInfo
 } from 'lucide-react';
 import InputError from '@/components/input-error';
+import { formatCurrency } from '@/lib/currency';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Stok Masuk', href: '/purchases' },
@@ -106,13 +107,6 @@ export default function PurchaseForm({ suppliers, products }: Props) {
     post('/purchases');
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>

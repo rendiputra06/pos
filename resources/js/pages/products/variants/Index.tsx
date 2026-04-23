@@ -1,4 +1,5 @@
 import EditVariantDialog from '@/components/EditVariantDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -9,19 +10,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import VariantCard from '@/components/VariantCard';
-import VariantImageUpload from '@/components/VariantImageUpload';
 import VariantImportExport from '@/components/VariantImportExport';
 import VariantManager from '@/components/VariantManager';
 import VariantMatrix from '@/components/VariantMatrix';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ChevronLeft, Package, QrCode } from 'lucide-react';
+import { ChevronLeft, Package, QrCode, Power, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface Product {
@@ -73,10 +72,6 @@ interface Props {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Data Produk',
-        href: '/products',
-    },
-    {
         title: 'Produk (ATK)',
         href: '/products',
     },
@@ -103,6 +98,8 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
         confirmLabel: 'Ya',
         onConfirm: null,
     });
+
+    const [selectedVariants, setSelectedVariants] = useState<number[]>([]);
 
     const openConfirmDialog = (title: string, description: string, onConfirm: () => void, confirmLabel = 'Ya') => {
         setConfirmDialog({
@@ -217,6 +214,85 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
         );
     };
 
+    // Bulk operations
+    const toggleVariantSelection = (variantId: number) => {
+        setSelectedVariants((prev) =>
+            prev.includes(variantId)
+                ? prev.filter((id) => id !== variantId)
+                : [...prev, variantId]
+        );
+    };
+
+    const selectAllVariants = () => {
+        if (selectedVariants.length === variants.length) {
+            setSelectedVariants([]);
+        } else {
+            setSelectedVariants(variants.map((v) => v.id));
+        }
+    };
+
+    const clearSelection = () => {
+        setSelectedVariants([]);
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedVariants.length === 0) return;
+
+        openConfirmDialog(
+            'Hapus Variant Terpilih?',
+            `${selectedVariants.length} variant akan dihapus secara permanen.`,
+            () => {
+                setIsLoading(true);
+                router.post(
+                    `/products/${product.id}/variants/bulk-delete`,
+                    { variant_ids: selectedVariants },
+                    {
+                        onSuccess: () => {
+                            setSelectedVariants([]);
+                            router.reload({ preserveScroll: true });
+                        },
+                        onFinish: () => setIsLoading(false),
+                    }
+                );
+            },
+            'Hapus'
+        );
+    };
+
+    const handleBulkActivate = () => {
+        if (selectedVariants.length === 0) return;
+
+        setIsLoading(true);
+        router.post(
+            `/products/${product.id}/variants/bulk-toggle`,
+            { variant_ids: selectedVariants, is_active: true },
+            {
+                onSuccess: () => {
+                    setSelectedVariants([]);
+                    router.reload({ preserveScroll: true });
+                },
+                onFinish: () => setIsLoading(false),
+            }
+        );
+    };
+
+    const handleBulkDeactivate = () => {
+        if (selectedVariants.length === 0) return;
+
+        setIsLoading(true);
+        router.post(
+            `/products/${product.id}/variants/bulk-toggle`,
+            { variant_ids: selectedVariants, is_active: false },
+            {
+                onSuccess: () => {
+                    setSelectedVariants([]);
+                    router.reload({ preserveScroll: true });
+                },
+                onFinish: () => setIsLoading(false),
+            }
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Variants - ${product.name}`} />
@@ -237,9 +313,6 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
                         <p className="text-muted-foreground">Kelola variant groups dan kombinasi untuk produk ini</p>
                     </div>
                     <div className="flex gap-2">
-                        <Badge variant={product.has_variants ? 'default' : 'secondary'}>
-                            {product.has_variants ? 'Has Variants' : 'No Variants'}
-                        </Badge>
                         {variants && variants.length > 0 && (
                             <Button variant="outline" size="sm" onClick={handleGenerateAllBarcodes} className="gap-2">
                                 <QrCode className="h-4 w-4" />
@@ -266,11 +339,71 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
                 {variants && variants.length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Package className="h-5 w-5" />
-                                Generated Variants ({variants.length})
-                            </CardTitle>
-                            <CardDescription>Kombinasi variant yang telah dibuat dari groups di atas</CardDescription>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Package className="h-5 w-5" />
+                                        Generated Variants ({variants.length})
+                                    </CardTitle>
+                                    {/* Bulk Selection Controls */}
+                                    <div className="flex items-center gap-2 border-l pl-3">
+                                        <Checkbox
+                                            id="select-all"
+                                            checked={selectedVariants.length === variants.length && variants.length > 0}
+                                            onCheckedChange={selectAllVariants}
+                                        />
+                                        <label htmlFor="select-all" className="text-sm cursor-pointer">
+                                            {selectedVariants.length > 0
+                                                ? `${selectedVariants.length} selected`
+                                                : 'Select All'}
+                                        </label>
+                                    </div>
+                                </div>
+                                <CardDescription>Kombinasi variant yang telah dibuat</CardDescription>
+                            </div>
+
+                            {/* Bulk Actions Toolbar */}
+                            {selectedVariants.length > 0 && (
+                                <div className="mt-4 flex items-center gap-2 rounded-lg border bg-muted/50 p-2">
+                                    <span className="text-sm font-medium px-2">{selectedVariants.length} dipilih:</span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleBulkActivate}
+                                        className="gap-2"
+                                    >
+                                        <Power className="h-4 w-4 text-green-500" />
+                                        Aktifkan
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleBulkDeactivate}
+                                        className="gap-2"
+                                    >
+                                        <Power className="h-4 w-4 text-gray-500" />
+                                        Nonaktifkan
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleBulkDelete}
+                                        className="gap-2 text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Hapus
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={clearSelection}
+                                        className="ml-auto gap-2"
+                                    >
+                                        <X className="h-4 w-4" />
+                                        Batal
+                                    </Button>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -278,6 +411,9 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
                                     <VariantCard
                                         key={variant.id}
                                         variant={variant}
+                                        productId={product.id}
+                                        isSelected={selectedVariants.includes(variant.id)}
+                                        onToggleSelection={() => toggleVariantSelection(variant.id)}
                                         onEdit={handleEditVariant}
                                         onToggleStatus={handleToggleVariantStatus}
                                         onDelete={handleDeleteVariant}
@@ -325,31 +461,6 @@ export default function VariantIndex({ product, variantGroups = [], variants = [
                             <Button onClick={() => router.post(`/products/${product.id}/variants/generate`)} className="gap-2">
                                 Generate Variants Sekarang
                             </Button>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Variant Image Upload Section */}
-                {variants && variants.length > 0 && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Package className="h-5 w-5" />
-                                Upload Gambar Variant
-                            </CardTitle>
-                            <CardDescription>Upload gambar untuk setiap variant produk</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {variants.map((variant) => (
-                                    <VariantImageUpload
-                                        key={variant.id}
-                                        product={product}
-                                        variant={variant}
-                                        onUpdate={() => router.reload({ preserveScroll: true })}
-                                    />
-                                ))}
-                            </div>
                         </CardContent>
                     </Card>
                 )}

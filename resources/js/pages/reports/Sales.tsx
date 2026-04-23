@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Download, Filter, Search } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 import { useState } from 'react';
 
 interface Transaction {
@@ -61,13 +62,6 @@ export default function SalesReport({ transactions, filters }: SalesReportProps)
         });
     };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(value);
-    };
 
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleString('id-ID', {

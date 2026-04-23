@@ -200,7 +200,6 @@ export default function VariantMatrix({ product, variantGroups, variants, onUpda
                     stock: variant.stock,
                     unit: variant.unit,
                     combination: variant.combination,
-                    combination_hash: btoa(JSON.stringify(variant.combination)),
                 },
                 {
                     onSuccess: () => {
@@ -259,7 +258,6 @@ export default function VariantMatrix({ product, variantGroups, variants, onUpda
                     stock: variant.stock,
                     unit: variant.unit,
                     combination: variant.combination,
-                    combination_hash: btoa(JSON.stringify(variant.combination)),
                 });
             }, index * 100);
         });

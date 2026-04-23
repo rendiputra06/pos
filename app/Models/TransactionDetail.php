@@ -15,6 +15,9 @@ class TransactionDetail extends Model
         'qty',
         'price',
         'cost_price',
+        'unit_name',
+        'conversion_factor',
+        'base_qty',
         'subtotal',
     ];
 

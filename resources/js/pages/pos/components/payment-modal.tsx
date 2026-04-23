@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/currency';
 import { Loader2, CheckCircle, QrCode } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -52,7 +53,6 @@ export function PaymentModal({ open, onOpenChange, total, onProcess }: PaymentMo
         }
     };
 
-    const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

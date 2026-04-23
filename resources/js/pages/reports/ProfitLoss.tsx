@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, Percent, Calendar, CreditCard } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/lib/currency';
 import axios from 'axios';
 
 interface ProfitLossData {
@@ -46,13 +47,6 @@ export default function ProfitLoss() {
         fetchData();
     }, []);
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(value);
-    };
 
     const pieData = data ? [
         { name: 'COGS', value: data.cogs, color: '#ef4444' },

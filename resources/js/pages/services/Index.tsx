@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/popover";
 import { Search, Printer, RotateCcw, Trash2, Edit2, ChevronLeft, ChevronRight, Info, Layers } from 'lucide-react';
 import { debounce } from 'lodash';
+import { formatCurrency } from '@/lib/currency';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -170,7 +171,7 @@ export default function ServiceIndex({ services, filters }: Props) {
                         <Badge variant="outline">{service.category.name}</Badge>
                       </td>
                       <td className="px-6 py-4 font-bold text-emerald-600">
-                        Rp {Number(service.base_price).toLocaleString()}
+                        {formatCurrency(Number(service.base_price))}
                       </td>
                       <td className="px-6 py-4">
                         {service.price_levels.length > 0 ? (
@@ -189,7 +190,7 @@ export default function ServiceIndex({ services, filters }: Props) {
                                             {service.price_levels.sort((a,b) => a.min_qty - b.min_qty).map((level) => (
                                                 <div key={level.id} className="flex justify-between text-xs py-1 px-2 rounded bg-muted/50">
                                                     <span>{level.min_qty}{level.max_qty ? ` - ${level.max_qty}` : '+'} lembar</span>
-                                                    <span className="font-bold text-emerald-600">Rp {level.price.toLocaleString()}</span>
+                                                    <span className="font-bold text-emerald-600">{formatCurrency(level.price)}</span>
                                                 </div>
                                             ))}
                                         </div>

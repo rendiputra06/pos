@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductUnit;
 use App\Exports\ProductExport;
 use App\Imports\ProductImport;
+use App\Services\ProductUnitService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
@@ -14,18 +16,32 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
+    protected ProductUnitService $productUnitService;
+
+    public function __construct(ProductUnitService $productUnitService)
+    {
+        $this->productUnitService = $productUnitService;
+    }
+
     public function index(Request $request)
     {
-        $products = Product::with('category', 'media', 'primaryVariant.media')
+        $products = Product::with('category', 'media', 'primaryVariant.media', 'activeUnits')
             ->withCount('variants')
             ->withCount(['variants as active_variants_count' => function ($query) {
                 $query->where('is_active', true);
             }])
             ->withCount(['variantsWithImages as variant_images_count'])
             ->withSum('variants as total_stock', 'stock')
-            ->withMin('variants as min_price', 'price')
-            ->withMax('variants as max_price', 'price')
-            ->withAvg('variants as average_price', 'price')
+            ->withMin(['variants as min_price' => function ($query) {
+                $query->where('price', '>', 0);
+            }], 'price')
+            ->withMax(['variants as max_price' => function ($query) {
+                $query->where('price', '>', 0);
+            }], 'price')
+            ->withAvg(['variants as average_price' => function ($query) {
+                $query->where('price', '>', 0);
+            }], 'price')
+            ->with(['baseUnit'])
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -65,14 +81,26 @@ class ProductController extends Controller
             'barcode' => 'nullable|string|max:50',
             'unit' => 'required|string|max:20',
             'has_variants' => 'boolean',
+            'has_multiple_units' => 'boolean',
             'image' => 'nullable|image|mimes:jpeg,png,webp|max:2048',
         ];
 
-        // Conditional validation based on has_variants
-        if (!$request->boolean('has_variants')) {
+        // Conditional validation based on has_variants and has_multiple_units
+        if (!$request->boolean('has_variants') && !$request->boolean('has_multiple_units')) {
             $rules['cost_price'] = 'required|numeric|min:0';
             $rules['price'] = 'required|numeric|min:0';
             $rules['stock'] = 'required|integer|min:0';
+        }
+
+        // Validate units if has_multiple_units is true
+        if ($request->boolean('has_multiple_units')) {
+            $rules['units'] = 'required|array|min:1';
+            $rules['units.*.name'] = 'required|string|max:30';
+            $rules['units.*.sku'] = 'required|string|max:50|unique:product_units,sku';
+            $rules['units.*.price'] = 'required|numeric|min:0';
+            $rules['units.*.cost_price'] = 'required|numeric|min:0';
+            $rules['units.*.stock'] = 'required|integer|min:0';
+            $rules['units.*.conversion_factor'] = 'required|numeric|min:0.01';
         }
 
         $validated = $request->validate($rules);
@@ -81,12 +109,21 @@ class ProductController extends Controller
             $validated['sku'] = 'PROD-' . strtoupper(Str::random(8));
         }
 
+        // Remove units from product data before creation
+        $units = $validated['units'] ?? null;
+        unset($validated['units']);
+
         $product = Product::create($validated);
 
         // Handle image upload
         if ($request->hasFile('image')) {
             $product->addMediaFromRequest('image')
                 ->toMediaCollection('product_images');
+        }
+
+        // Create units if has_multiple_units
+        if ($request->boolean('has_multiple_units') && $units) {
+            $this->productUnitService->createInitialUnits($product, $units);
         }
 
         // Check if this is a "save and input variants" request
@@ -105,6 +142,8 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
+        $product->load('units');
+
         return Inertia::render('products/Form', [
             'product' => $product,
             'categories' => Category::where('type', 'product')->get(),
@@ -120,17 +159,36 @@ class ProductController extends Controller
             'barcode' => 'nullable|string|max:50',
             'unit' => 'required|string|max:20',
             'has_variants' => 'boolean',
+            'has_multiple_units' => 'boolean',
             'image' => 'nullable|image|mimes:jpeg,png,webp|max:2048',
         ];
 
-        // Conditional validation based on has_variants
-        if (!$request->boolean('has_variants')) {
+        // Conditional validation based on has_variants and has_multiple_units
+        if (!$request->boolean('has_variants') && !$request->boolean('has_multiple_units')) {
             $rules['cost_price'] = 'required|numeric|min:0';
             $rules['price'] = 'required|numeric|min:0';
             $rules['stock'] = 'required|integer|min:0';
+        } elseif ($request->boolean('has_multiple_units')) {
+            // For multi-unit products, stock is optional and synced from base unit
+            $rules['stock'] = 'nullable|integer|min:0';
+        }
+
+        // Validate units if has_multiple_units is true
+        if ($request->boolean('has_multiple_units')) {
+            $rules['units'] = 'required|array|min:1';
+            $rules['units.*.name'] = 'required|string|max:30';
+            $rules['units.*.sku'] = 'required|string|max:50';
+            $rules['units.*.price'] = 'required|numeric|min:0';
+            $rules['units.*.cost_price'] = 'required|numeric|min:0';
+            $rules['units.*.stock'] = 'required|integer|min:0';
+            $rules['units.*.conversion_factor'] = 'required|numeric|min:0.01';
         }
 
         $validated = $request->validate($rules);
+
+        // Remove units from product data before update
+        $units = $validated['units'] ?? null;
+        unset($validated['units']);
 
         // Set default values for variant products
         if ($request->boolean('has_variants')) {
@@ -139,7 +197,29 @@ class ProductController extends Controller
             $validated['stock'] = 0; // Always 0 for variant products
         }
 
+        // For multi-unit products, don't update product stock - it's synced from base unit
+        if ($request->boolean('has_multiple_units')) {
+            unset($validated['stock']);
+        }
+
         $product->update($validated);
+
+        // Sync units if has_multiple_units
+        if ($request->boolean('has_multiple_units') && $units) {
+            $this->productUnitService->syncUnits($product, $units);
+        }
+
+        // Handle has_multiple_units toggle logic
+        if (isset($validated['has_multiple_units'])) {
+            $newMultiUnitStatus = $validated['has_multiple_units'];
+            $oldMultiUnitStatus = $product->getOriginal('has_multiple_units');
+
+            // If switching from multi-unit to simple product
+            if ($oldMultiUnitStatus && !$newMultiUnitStatus) {
+                // Delete all units
+                $product->units()->delete();
+            }
+        }
 
         // Handle has_variants toggle logic
         if (isset($validated['has_variants'])) {
@@ -381,4 +461,5 @@ class ProductController extends Controller
             }
         }, $filename);
     }
+
 }

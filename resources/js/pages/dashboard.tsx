@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { SalesTrendChart } from '@/components/charts/SalesTrendChart';
 import { CategoryBreakdownChart } from '@/components/charts/CategoryBreakdownChart';
+import { formatCurrency } from '@/lib/currency';
 import axios from 'axios';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -70,13 +71,6 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
 
   if (loading) {
     return (

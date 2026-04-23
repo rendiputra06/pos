@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { type SharedData } from '@/types';
+import { formatCurrency } from '@/lib/currency';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -39,13 +40,6 @@ export default function Welcome({ products: initialProducts, services: initialSe
     return () => window.removeEventListener('scroll', handleScroll);
   }, [primaryColor]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans antialiased text-slate-900 overflow-x-hidden">
@@ -161,7 +155,7 @@ export default function Welcome({ products: initialProducts, services: initialSe
                 </div>
                 <h3 className="font-bold text-lg mb-2 line-clamp-1">{p.name}</h3>
                 <div className="flex justify-between items-center">
-                    <span className="text-[var(--primary)] font-black text-xl">{formatPrice(p.price)}</span>
+                    <span className="text-[var(--primary)] font-black text-xl">{formatCurrency(p.price)}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.stock > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                         {p.stock > 0 ? `Stok: ${p.stock}` : 'Habis'}
                     </span>
@@ -194,14 +188,14 @@ export default function Welcome({ products: initialProducts, services: initialSe
                           <div className="space-y-4 mb-8 relative">
                               <div className="flex justify-between items-center border-b border-dashed pb-2">
                                   <span className="text-slate-500 text-sm font-bold uppercase">Harga Dasar</span>
-                                  <span className="font-black text-lg">{formatPrice(s.base_price)}</span>
+                                  <span className="font-black text-lg">{formatCurrency(s.base_price)}</span>
                               </div>
                               {s.price_levels?.map((l: any, idx: number) => (
                                   <div key={idx} className="flex justify-between items-center bg-slate-50 rounded-xl p-3">
                                       <span className="text-xs font-bold text-slate-500 uppercase italic">
                                           {l.min_qty} - {l.max_qty || '+'} item
                                       </span>
-                                      <span className="font-black text-[var(--primary)]">{formatPrice(l.price)}</span>
+                                      <span className="font-black text-[var(--primary)]">{formatCurrency(l.price)}</span>
                                   </div>
                               ))}
                           </div>

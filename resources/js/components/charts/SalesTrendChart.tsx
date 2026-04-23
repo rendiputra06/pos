@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface SalesTrendChartProps {
@@ -10,14 +11,6 @@ interface SalesTrendChartProps {
 }
 
 export function SalesTrendChart({ data }: SalesTrendChartProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(value);
-    };
-
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
         return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
@@ -43,8 +36,8 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
                             style={{ fontSize: '12px' }}
                         />
                         <Tooltip 
-                            formatter={(value: number) => formatCurrency(value)}
-                            labelFormatter={formatDate}
+                            formatter={(value) => formatCurrency(value as number)}
+                            labelFormatter={(label) => formatDate(label as string)}
                         />
                         <Line 
                             type="monotone" 

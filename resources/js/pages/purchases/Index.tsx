@@ -32,6 +32,7 @@ import {
   Eye
 } from 'lucide-react';
 import { debounce } from 'lodash';
+import { formatCurrency } from '@/lib/currency';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -105,13 +106,6 @@ export default function PurchaseIndex({ purchases, filters }: Props) {
     });
   }
 
-  const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(Number(amount));
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -217,7 +211,7 @@ export default function PurchaseIndex({ purchases, filters }: Props) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-bold text-primary">{formatCurrency(purchase.total_amount)}</span>
+                        <span className="font-bold text-primary">{formatCurrency(Number(purchase.total_amount))}</span>
                       </td>
                       <td className="px-6 py-4">
                         {getStatusBadge(purchase.status)}

@@ -23,6 +23,7 @@ class Product extends Model implements HasMedia
         'unit',
         'image',
         'has_variants',
+        'has_multiple_units',
     ];
 
     protected $appends = [
@@ -34,6 +35,8 @@ class Product extends Model implements HasMedia
         'min_price',
         'max_price',
         'average_price',
+        'has_multiple_units',
+        'unit_price_range',
     ];
 
     protected $casts = [
@@ -77,23 +80,107 @@ class Product extends Model implements HasMedia
     }
 
     /**
-     * Get total stock across all variants
+     * Get product units (multiple units: pcs, box, dus, etc.)
+     */
+    public function units()
+    {
+        return $this->hasMany(ProductUnit::class)->orderBy('display_order');
+    }
+
+    /**
+     * Get active units only
+     */
+    public function activeUnits()
+    {
+        return $this->hasMany(ProductUnit::class)
+            ->where('is_active', true)
+            ->orderBy('display_order');
+    }
+
+    /**
+     * Get the base unit (smallest unit, stock holder)
+     */
+    public function baseUnit()
+    {
+        return $this->hasOne(ProductUnit::class)->where('is_base_unit', true);
+    }
+
+    /**
+     * Check if product has multiple units
+     */
+    public function getHasMultipleUnitsAttribute()
+    {
+        if (array_key_exists('has_multiple_units', $this->attributes)) {
+            return (bool) $this->attributes['has_multiple_units'];
+        }
+
+        if ($this->relationLoaded('units')) {
+            return $this->units->count() > 1;
+        }
+
+        return $this->units()->count() > 1;
+    }
+
+    /**
+     * Get total stock (base unit stock for multi-unit, variant sum for variants, or product stock)
      */
     public function getTotalStockAttribute()
     {
-        if (!$this->has_variants) {
-            return $this->stock;
+        // If has variants, use variant stock sum
+        if ($this->has_variants) {
+            if (array_key_exists('total_stock', $this->attributes)) {
+                return $this->attributes['total_stock'];
+            }
+
+            if ($this->relationLoaded('variants')) {
+                return $this->variants->sum('stock');
+            }
+
+            return $this->variants()->sum('stock');
         }
 
-        if (array_key_exists('total_stock', $this->attributes)) {
-            return $this->attributes['total_stock'];
+        // If has multiple units, get base unit stock
+        if ($this->has_multiple_units) {
+            if ($this->relationLoaded('baseUnit')) {
+                return $this->baseUnit?->stock ?? 0;
+            }
+
+            return $this->baseUnit()?->stock ?? 0;
         }
 
-        if ($this->relationLoaded('variants')) {
-            return $this->variants->sum('stock');
+        // Simple product
+        return $this->stock;
+    }
+
+    /**
+     * Get price range string for units (e.g. "Rp 1.000 - Rp 12.000")
+     */
+    public function getUnitPriceRangeAttribute()
+    {
+        if (!$this->has_multiple_units) {
+            return null;
         }
 
-        return $this->variants()->sum('stock');
+        if (array_key_exists('unit_price_range', $this->attributes)) {
+            return $this->attributes['unit_price_range'];
+        }
+
+        $units = $this->relationLoaded('activeUnits') 
+            ? $this->activeUnits 
+            : $this->activeUnits()->get();
+
+        if ($units->isEmpty()) {
+            return null;
+        }
+
+        $minPrice = $units->min('price');
+        $maxPrice = $units->max('price');
+
+        if ($minPrice == $maxPrice) {
+            return 'Rp ' . number_format($minPrice, 0, ',', '.');
+        }
+
+        return 'Rp ' . number_format($minPrice, 0, ',', '.') . ' - Rp ' . number_format($maxPrice, 0, ',', '.');
     }
 
     /**
@@ -160,63 +247,96 @@ class Product extends Model implements HasMedia
     }
 
     /**
-     * Get min price across all variants
+     * Get min price (variants or units, whichever is applicable)
      */
     public function getMinPriceAttribute()
     {
-        if (!$this->has_variants) {
-            return $this->price;
+        // If has variants, use variant prices
+        if ($this->has_variants) {
+            if (array_key_exists('min_price', $this->attributes)) {
+                return $this->attributes['min_price'];
+            }
+
+            if ($this->relationLoaded('variants')) {
+                return $this->variants->where('price', '>', 0)->min('price');
+            }
+
+            return $this->variants()->where('price', '>', 0)->min('price');
         }
 
-        if (array_key_exists('min_price', $this->attributes)) {
-            return $this->attributes['min_price'];
+        // If has multiple units, use unit prices
+        if ($this->has_multiple_units) {
+            if ($this->relationLoaded('activeUnits')) {
+                return $this->activeUnits->where('price', '>', 0)->min('price');
+            }
+
+            return $this->activeUnits()->where('price', '>', 0)->min('price');
         }
 
-        if ($this->relationLoaded('variants')) {
-            return $this->variants->min('price');
-        }
-
-        return $this->variants()->min('price');
+        // Simple product
+        return $this->price;
     }
 
     /**
-     * Get max price across all variants
+     * Get max price (variants or units, whichever is applicable)
      */
     public function getMaxPriceAttribute()
     {
-        if (!$this->has_variants) {
-            return $this->price;
+        // If has variants, use variant prices
+        if ($this->has_variants) {
+            if (array_key_exists('max_price', $this->attributes)) {
+                return $this->attributes['max_price'];
+            }
+
+            if ($this->relationLoaded('variants')) {
+                return $this->variants->where('price', '>', 0)->max('price');
+            }
+
+            return $this->variants()->where('price', '>', 0)->max('price');
         }
 
-        if (array_key_exists('max_price', $this->attributes)) {
-            return $this->attributes['max_price'];
+        // If has multiple units, use unit prices
+        if ($this->has_multiple_units) {
+            if ($this->relationLoaded('activeUnits')) {
+                return $this->activeUnits->where('price', '>', 0)->max('price');
+            }
+
+            return $this->activeUnits()->where('price', '>', 0)->max('price');
         }
 
-        if ($this->relationLoaded('variants')) {
-            return $this->variants->max('price');
-        }
-
-        return $this->variants()->max('price');
+        // Simple product
+        return $this->price;
     }
 
     /**
-     * Get average price across all variants
+     * Get average price (variants or units, whichever is applicable)
      */
     public function getAveragePriceAttribute()
     {
-        if (!$this->has_variants) {
-            return $this->price;
+        // If has variants, use variant prices
+        if ($this->has_variants) {
+            if (array_key_exists('average_price', $this->attributes)) {
+                return $this->attributes['average_price'];
+            }
+
+            if ($this->relationLoaded('variants')) {
+                return $this->variants->where('price', '>', 0)->avg('price');
+            }
+
+            return $this->variants()->where('price', '>', 0)->avg('price');
         }
 
-        if (array_key_exists('average_price', $this->attributes)) {
-            return $this->attributes['average_price'];
+        // If has multiple units, use unit prices
+        if ($this->has_multiple_units) {
+            if ($this->relationLoaded('activeUnits')) {
+                return $this->activeUnits->where('price', '>', 0)->avg('price');
+            }
+
+            return $this->activeUnits()->where('price', '>', 0)->avg('price');
         }
 
-        if ($this->relationLoaded('variants')) {
-            return $this->variants->avg('price');
-        }
-
-        return $this->variants()->avg('price');
+        // Simple product
+        return $this->price;
     }
 
     /**

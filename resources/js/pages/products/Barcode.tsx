@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, Printer, LayoutGrid, Tag, Minimize2, Maximize2, List } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 
 interface Product {
   id: number;
@@ -34,13 +35,6 @@ type Variation = 'standard' | 'minimalist' | 'retail' | 'compact' | 'shelf';
 export default function ProductBarcode({ product, variant }: Props) {
   const [variation, setVariation] = useState<Variation>('standard');
 
-  const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(Number(amount));
-  };
 
   // Use variant data if available, otherwise use product data
   const displayData = variant ? {

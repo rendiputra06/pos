@@ -17,6 +17,7 @@ import {
   XCircle,
   Package
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Stok Masuk', href: '/purchases' },
@@ -58,13 +59,6 @@ interface Props {
 }
 
 export default function PurchaseShow({ purchase }: Props) {
-  const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(Number(amount));
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -129,10 +123,10 @@ export default function PurchaseShow({ purchase }: Props) {
                                    <div className="font-bold">{detail.qty} <span className="text-[10px] text-muted-foreground uppercase">{detail.product.unit}</span></div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                   {formatCurrency(detail.cost_price)}
+                                   {formatCurrency(Number(detail.cost_price))}
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-primary">
-                                   {formatCurrency(detail.subtotal)}
+                                   {formatCurrency(Number(detail.subtotal))}
                                 </td>
                              </tr>
                           ))}
@@ -140,7 +134,7 @@ export default function PurchaseShow({ purchase }: Props) {
                        <tfoot className="bg-muted/10 font-bold border-t">
                           <tr>
                              <td colSpan={3} className="px-6 py-6 text-right uppercase tracking-widest text-xs text-muted-foreground">Total Keseluruhan</td>
-                             <td className="px-6 py-6 text-right text-xl text-primary">{formatCurrency(purchase.total_amount)}</td>
+                             <td className="px-6 py-6 text-right text-xl text-primary">{formatCurrency(Number(purchase.total_amount))}</td>
                           </tr>
                        </tfoot>
                     </table>

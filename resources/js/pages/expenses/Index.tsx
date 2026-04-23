@@ -41,6 +41,7 @@ import {
 import dayjs from 'dayjs';
 import 'dayjs/locale/id';
 import { debounce } from 'lodash';
+import { formatCurrency } from '@/lib/currency';
 import { type BreadcrumbItem } from '@/types';
 
 dayjs.locale('id');
@@ -125,13 +126,6 @@ export default function ExpenseIndex({ expenses, filters, categories, paymentMet
     });
   };
 
-  const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(Number(amount));
-  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -264,7 +258,7 @@ export default function ExpenseIndex({ expenses, filters, categories, paymentMet
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-destructive">
-                        {formatCurrency(expense.amount)}
+                        {formatCurrency(Number(expense.amount))}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">

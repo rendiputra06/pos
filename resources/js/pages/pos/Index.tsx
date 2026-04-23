@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
+import { formatCurrency } from '@/lib/currency';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
@@ -11,7 +12,18 @@ import { Minus, Plus, Search, ShoppingCart, Trash2, X, Printer, History, Clock, 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { PaymentModal } from './components/payment-modal';
+import { UnitSelector } from './components/unit-selector';
 import { router } from '@inertiajs/react';
+
+interface ProductUnit {
+    id: number;
+    name: string;
+    price: number;
+    stock: number;
+    sku: string;
+    barcode?: string;
+    conversion_factor: number;
+}
 
 interface Product {
     id: number;
@@ -21,13 +33,20 @@ interface Product {
     sku?: string;
     stock?: number;
     unit?: string;
+    unit_name?: string;
+    has_multiple_units?: boolean;
+    units?: ProductUnit[];
+    selected_unit_id?: number;
     price_levels?: any[];
 }
 
 interface CartItem extends Product {
     qty: number;
     subtotal: number;
-    original_price: number; // for displaying discount/wholesale effect
+    original_price: number;
+    unit_id?: number;
+    unit_name?: string;
+    conversion_factor?: number;
 }
 
 export default function PosIndex({ serviceCategories, recentTransactions, topProducts }: { serviceCategories: any[], recentTransactions: any[], topProducts: any[] }) {
@@ -35,6 +54,8 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [showPayment, setShowPayment] = useState(false);
+    const [showUnitSelector, setShowUnitSelector] = useState(false);
+    const [selectedProductForUnit, setSelectedProductForUnit] = useState<Product | null>(null);
 
     // Dynamic Pricing Logic
     const calculateItemPrice = (item: Product, qty: number): number => {
@@ -45,28 +66,66 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
         return Number(item.price);
     };
 
-    const addToCart = (product: Product) => {
+    const addToCart = (product: Product, selectedUnit?: ProductUnit) => {
+        // Check if product has multiple units and no unit selected yet
+        if (product.type === 'product' && product.has_multiple_units && !selectedUnit && !product.selected_unit_id) {
+            setSelectedProductForUnit(product);
+            setShowUnitSelector(true);
+            return;
+        }
+
         setCart((prev) => {
-            const existing = prev.find((i) => i.id === product.id && i.type === product.type);
+            // Create unique key considering unit_id for multi-unit products
+            const itemKey = (item: CartItem) => {
+                if (item.type === 'product' && item.unit_id) {
+                    return `${item.type}-${item.id}-${item.unit_id}`;
+                }
+                return `${item.type}-${item.id}`;
+            };
+
+            const productKey = selectedUnit 
+                ? `${product.type}-${product.id}-${selectedUnit.id}`
+                : `${product.type}-${product.id}`;
+
+            const existing = prev.find((i) => itemKey(i) === productKey);
+            
             if (existing) {
                 const newQty = existing.qty + 1;
                 const newPrice = calculateItemPrice(existing, newQty);
                 return prev.map((i) =>
-                    i.id === product.id && i.type === product.type
+                    itemKey(i) === productKey
                         ? { ...i, qty: newQty, price: newPrice, subtotal: Number(newQty * newPrice) }
                         : i
                 );
             }
-            const price = Number(product.price);
-            return [...prev, { ...product, qty: 1, price: price, original_price: price, subtotal: price }];
+            
+            const price = selectedUnit ? Number(selectedUnit.price) : Number(product.price);
+            const cartItem: CartItem = {
+                ...product,
+                qty: 1,
+                price: price,
+                original_price: price,
+                subtotal: price,
+                unit_id: selectedUnit?.id,
+                unit_name: selectedUnit?.name,
+                conversion_factor: selectedUnit?.conversion_factor,
+            };
+            return [...prev, cartItem];
         });
         setSearchQuery('');
         setSearchResults([]);
-        // Refocus the search input
         setTimeout(() => {
             const commandInput = document.querySelector('[cmdk-input]') as HTMLInputElement;
             if (commandInput) commandInput.focus();
         }, 100);
+    };
+
+    const handleUnitSelect = (unit: ProductUnit) => {
+        if (selectedProductForUnit) {
+            addToCart(selectedProductForUnit, unit);
+            setShowUnitSelector(false);
+            setSelectedProductForUnit(null);
+        }
     };
 
     const updateQty = (index: number, delta: number) => {
@@ -211,7 +270,13 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
     const handleProcessPayment = async (method: string, amount: number) => {
         try {
             const payload = {
-                items: cart.map(i => ({ id: i.id, type: i.type, qty: i.qty, price: i.price })),
+                items: cart.map(i => ({ 
+                    id: i.id, 
+                    type: i.type, 
+                    qty: i.qty, 
+                    price: i.price,
+                    unit_id: i.unit_id,
+                })),
                 total_amount: cartTotal,
                 grand_total: cartTotal,
                 payment_method: method,
@@ -231,8 +296,6 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
             toast.error('Gagal memproses transaksi.');
         }
     };
-
-    const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
     return (
         <AppLayout breadcrumbs={[{ title: 'POS Terminal', href: '/pos' }]}>
@@ -256,16 +319,33 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
                                 <CommandList className="absolute top-12 w-full bg-popover border rounded-md shadow-lg z-50 animate-in fade-in zoom-in-95">
                                     <CommandGroup heading="Hasil Pencarian">
                                         {searchResults.map((item) => (
-                                            <CommandItem key={`${item.type}-${item.id}`} onSelect={() => addToCart(item)} className="cursor-pointer">
+                                            <CommandItem 
+                                                key={`${item.type}-${item.id}-${item.selected_unit_id || ''}`} 
+                                                onSelect={() => addToCart(item)} 
+                                                className="cursor-pointer"
+                                            >
                                                 <div className="flex justify-between w-full items-center">
-                                                    <div>
-                                                        <span className="font-medium">{item.name}</span>
-                                                        <span className="ml-2 text-xs text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted">
-                                                            {item.type}
-                                                        </span>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium">{item.name}</span>
+                                                            {item.has_multiple_units && (
+                                                                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                                                                    Multi
+                                                                </span>
+                                                            )}
+                                                            {item.unit_name && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    ({item.unit_name})
+                                                                </span>
+                                                            )}
+                                                            <span className="text-xs text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted">
+                                                                {item.type}
+                                                            </span>
+                                                        </div>
                                                         {item.type === 'product' && (
-                                                            <span className={`ml-2 text-xs ${item.stock! < 5 ? 'text-red-500 font-bold' : 'text-green-600'}`}>
-                                                                Stok: {item.stock}
+                                                            <span className={`text-xs ${item.stock! < 5 ? 'text-red-500 font-bold' : 'text-green-600'}`}>
+                                                                Stok: {item.stock} {item.unit}
+                                                                {item.has_multiple_units && ' (pilih satuan)'}
                                                             </span>
                                                         )}
                                                     </div>
@@ -361,15 +441,22 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
                         ) : (
                             <div className="space-y-3">
                                 {cart.map((item, index) => (
-                                    <div key={`${item.type}-${item.id}`} className="flex flex-col gap-2 p-3 rounded-lg border bg-card shadow-sm animate-in slide-in-from-right-4 duration-300">
+                                    <div key={`${item.type}-${item.id}-${item.unit_id || ''}`} className="flex flex-col gap-2 p-3 rounded-lg border bg-card shadow-sm animate-in slide-in-from-right-4 duration-300">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1">
                                                 <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
-                                                {item.price < item.original_price && (
-                                                    <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
-                                                        Grosir Applied
-                                                    </span>
-                                                )}
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    {item.unit_name && (
+                                                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                                            {item.unit_name}
+                                                        </span>
+                                                    )}
+                                                    {item.price < item.original_price && (
+                                                        <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
+                                                            Grosir
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <Button
                                                 variant="ghost"
@@ -397,7 +484,14 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
                                             </div>
                                             <div className="text-right">
                                                 <div className="font-bold text-sm">{formatCurrency(item.subtotal)}</div>
-                                                <div className="text-[10px] text-muted-foreground">@{formatCurrency(item.price)}</div>
+                                                <div className="text-[10px] text-muted-foreground">
+                                                    @{formatCurrency(item.price)}
+                                                    {item.conversion_factor && item.conversion_factor > 1 && (
+                                                        <span className="ml-1 text-[9px] text-amber-600">
+                                                            (×{item.conversion_factor})
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -472,6 +566,20 @@ export default function PosIndex({ serviceCategories, recentTransactions, topPro
                 onOpenChange={setShowPayment} 
                 total={cartTotal} 
                 onProcess={handleProcessPayment}
+            />
+
+            <UnitSelector
+                isOpen={showUnitSelector}
+                onClose={() => {
+                    setShowUnitSelector(false);
+                    setSelectedProductForUnit(null);
+                }}
+                product={selectedProductForUnit && selectedProductForUnit.units ? {
+                    id: selectedProductForUnit.id,
+                    name: selectedProductForUnit.name,
+                    units: selectedProductForUnit.units,
+                } : null}
+                onSelect={handleUnitSelect}
             />
         </AppLayout>
     );

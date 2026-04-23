@@ -14,6 +14,7 @@ use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\VariantController;
+use App\Http\Controllers\ProductUnitController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\Api\PosApiController;
@@ -78,7 +79,18 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('/products/{product}/variants/barcodes', [VariantController::class, 'generateAllBarcodes'])->name('products.variants.barcodes.generate');
     Route::get('/products/{product}/variants/export', [VariantController::class, 'export'])->name('products.variants.export');
     Route::post('/products/{product}/variants/import', [VariantController::class, 'import'])->name('products.variants.import');
-    Route::get('/products/{product}/variants/template', [VariantController::class, 'importTemplate'])->name('products.variants.template');
+    Route::post('/products/{product}/variants/bulk-delete', [VariantController::class, 'bulkDelete'])->name('products.variants.bulkDelete');
+    Route::post('/products/{product}/variants/bulk-toggle', [VariantController::class, 'bulkToggleStatus'])->name('products.variants.bulkToggle');
+    
+    // Product Units Routes
+    Route::get('/products/{product}/units', [ProductUnitController::class, 'index'])->name('products.units.index');
+    Route::post('/products/{product}/units', [ProductUnitController::class, 'store'])->name('products.units.store');
+    Route::post('/products/{product}/units/bulk', [ProductUnitController::class, 'bulkStore'])->name('products.units.bulkStore');
+    Route::put('/products/{product}/units/{unit}', [ProductUnitController::class, 'update'])->name('products.units.update');
+    Route::delete('/products/{product}/units/{unit}', [ProductUnitController::class, 'destroy'])->name('products.units.destroy');
+    Route::post('/products/{product}/units/{unit}/set-base', [ProductUnitController::class, 'setAsBaseUnit'])->name('products.units.setBase');
+    Route::post('/products/{product}/units/reorder', [ProductUnitController::class, 'updateOrder'])->name('products.units.reorder');
+    
     Route::resource('services', ServiceController::class);
     Route::resource('expenses', ExpenseController::class);
     Route::resource('suppliers', SupplierController::class);

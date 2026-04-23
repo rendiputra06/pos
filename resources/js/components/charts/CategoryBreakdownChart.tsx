@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface CategoryBreakdownChartProps {
@@ -9,14 +10,6 @@ interface CategoryBreakdownChartProps {
 }
 
 export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(value);
-    };
-
     return (
         <Card>
             <CardHeader>
@@ -38,7 +31,7 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
                             tickFormatter={(value) => `Rp ${(value / 1000).toFixed(0)}k`}
                             style={{ fontSize: '12px' }}
                         />
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
                         <Bar dataKey="total" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
                     </BarChart>
                 </ResponsiveContainer>

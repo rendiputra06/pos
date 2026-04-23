@@ -155,8 +155,10 @@ class VariantController extends Controller
         foreach ($combinations as $combination) {
             $hash = ProductVariant::generateCombinationHash($combination);
 
-            // Check if variant already exists
-            $existingVariant = ProductVariant::where('combination_hash', $hash)->first();
+            // Check if variant already exists for this product
+            $existingVariant = ProductVariant::where('product_id', $product->id)
+                ->where('combination_hash', $hash)
+                ->first();
 
             if (!$existingVariant) {
                 $sku = ProductVariant::generateSKU($product->name, $combination);
@@ -430,6 +432,57 @@ class VariantController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Import failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Bulk delete variants
+     */
+    public function bulkDelete(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'variant_ids' => 'required|array',
+            'variant_ids.*' => 'integer|exists:product_variants,id',
+        ]);
+
+        $deletedCount = 0;
+        foreach ($validated['variant_ids'] as $variantId) {
+            $variant = $product->variants()->find($variantId);
+            if ($variant) {
+                $variant->delete();
+                $deletedCount++;
+            }
+        }
+
+        // Check if product still has variants
+        if ($product->variants()->count() === 0) {
+            $product->update(['has_variants' => false]);
+        }
+
+        return back()->with('success', "Berhasil menghapus {$deletedCount} variant.");
+    }
+
+    /**
+     * Bulk toggle variant status
+     */
+    public function bulkToggleStatus(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'variant_ids' => 'required|array',
+            'variant_ids.*' => 'integer|exists:product_variants,id',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $updatedCount = 0;
+        foreach ($validated['variant_ids'] as $variantId) {
+            $variant = $product->variants()->find($variantId);
+            if ($variant) {
+                $variant->update(['is_active' => $validated['is_active']]);
+                $updatedCount++;
+            }
+        }
+
+        $status = $validated['is_active'] ? 'mengaktifkan' : 'menonaktifkan';
+        return back()->with('success', "Berhasil {$status} {$updatedCount} variant.");
     }
 
     /**

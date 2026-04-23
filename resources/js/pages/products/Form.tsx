@@ -1,16 +1,19 @@
-import ImageUpload from '@/components/ImageUpload';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ChevronLeft, Loader2, Package, PackagePlus, Save } from 'lucide-react';
+import { ChevronLeft, Package } from 'lucide-react';
 import React, { useState } from 'react';
+import ProductTypeSelector from '@/components/products/ProductTypeSelector';
+import ProductBasicInfo from '@/components/products/ProductBasicInfo';
+import MultiUnitTable from '@/components/products/MultiUnitTable';
+import ProductImageUpload from '@/components/products/ProductImageUpload';
+import ProductFinanceStock from '@/components/products/ProductFinanceStock';
+import ProductPreview from '@/components/products/ProductPreview';
+import ProductSaveActions from '@/components/products/ProductSaveActions';
 
 interface Category {
     id: number;
@@ -28,9 +31,24 @@ interface Product {
     stock: number;
     unit: string;
     has_variants: boolean;
+    has_multiple_units?: boolean;
     thumbnail_url?: string | null;
     medium_url?: string | null;
     original_url?: string | null;
+    units?: ProductUnit[];
+}
+
+interface ProductUnit {
+    id?: number;
+    name: string;
+    sku: string;
+    barcode: string | null;
+    price: number;
+    cost_price: number;
+    stock: number;
+    conversion_factor: number;
+    is_base_unit: boolean;
+    is_active?: boolean;
 }
 
 interface Props {
@@ -38,10 +56,41 @@ interface Props {
     categories: Category[];
 }
 
+const generateSKU = (productName: string, unitName: string, index: number): string => {
+    const cleanName = productName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 8);
+    const cleanUnit = unitName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 4);
+    return `${cleanName}-${cleanUnit}-${String(index + 1).padStart(2, '0')}`;
+};
+
+const commonUnits = [
+    'pcs', 'buah', 'pack', 'box', 'rim', 'dus',
+    'meter', 'cm', 'roll', 'lembar', 'set',
+    'lusin', 'kodi', 'gross', 'bottle', 'can'
+];
+
 export default function ProductForm({ product, categories }: Props) {
     const isEdit = !!product;
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [hasVariants, setHasVariants] = useState(product?.has_variants || false);
+    const [hasMultipleUnits, setHasMultipleUnits] = useState(product?.has_multiple_units || false);
+    const [isUnitsExpanded, setIsUnitsExpanded] = useState(true);
+    const [isImageExpanded, setIsImageExpanded] = useState(true);
+    const [isFinanceExpanded, setIsFinanceExpanded] = useState(true);
+    const [skuValidation, setSkuValidation] = useState<{ valid: boolean; message?: string }>({ valid: true });
+    const [barcodeValidation, setBarcodeValidation] = useState<{ valid: boolean; message?: string }>({ valid: true });
+    const [customUnit, setCustomUnit] = useState('');
+
+    // Initialize units from product or with default single unit
+    const initialUnits: ProductUnit[] = product?.units?.length
+        ? product.units.map((u, i) => ({
+            ...u,
+            is_base_unit: u.is_base_unit ?? (i === 0),
+        }))
+        : hasMultipleUnits
+            ? []
+            : [];
+
+    const [units, setUnits] = useState<ProductUnit[]>(initialUnits);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Data Produk', href: '/products' },
@@ -58,6 +107,7 @@ export default function ProductForm({ product, categories }: Props) {
         stock: product?.stock || 0,
         unit: product?.unit || 'pcs',
         has_variants: product?.has_variants || false,
+        has_multiple_units: product?.has_multiple_units || false,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -68,12 +118,17 @@ export default function ProductForm({ product, categories }: Props) {
             const value = data[key as keyof typeof data];
 
             // Handle boolean values properly
-            if (key === 'has_variants') {
+            if (key === 'has_variants' || key === 'has_multiple_units') {
                 formData.append(key, value ? '1' : '0');
             } else {
                 formData.append(key, value.toString());
             }
         });
+
+        // Add units data if has_multiple_units
+        if (hasMultipleUnits && units.length > 0) {
+            formData.append('units', JSON.stringify(units));
+        }
 
         if (imageFile) {
             formData.append('image', imageFile);
@@ -106,12 +161,17 @@ export default function ProductForm({ product, categories }: Props) {
             const value = data[key as keyof typeof data];
 
             // Handle boolean values properly
-            if (key === 'has_variants') {
+            if (key === 'has_variants' || key === 'has_multiple_units') {
                 formData.append(key, value ? '1' : '0');
             } else {
                 formData.append(key, value.toString());
             }
         });
+
+        // Add units data if has_multiple_units
+        if (hasMultipleUnits && units.length > 0) {
+            formData.append('units', JSON.stringify(units));
+        }
 
         if (imageFile) {
             formData.append('image', imageFile);
@@ -124,10 +184,150 @@ export default function ProductForm({ product, categories }: Props) {
         router.post('/products', formData);
     };
 
+    // Unit management functions
+    const addUnit = () => {
+        const isFirst = units.length === 0;
+        const newUnit: ProductUnit = {
+            name: '',
+            sku: data.name ? generateSKU(data.name, 'UNIT', units.length) : '',
+            barcode: null,
+            price: 0,
+            cost_price: 0,
+            stock: isFirst ? (data.stock || 0) : 0,
+            conversion_factor: isFirst ? 1 : 1,
+            is_base_unit: isFirst,
+        };
+        setUnits([...units, newUnit]);
+    };
+
+    const removeUnit = (index: number) => {
+        const newUnits = units.filter((_, i) => i !== index);
+        // If we removed the base unit, make the first remaining unit the base
+        if (units[index].is_base_unit && newUnits.length > 0) {
+            newUnits[0].is_base_unit = true;
+        }
+        setUnits(newUnits);
+    };
+
+    const updateUnit = (index: number, field: keyof ProductUnit, value: string | number | boolean) => {
+        const newUnits = [...units];
+        newUnits[index] = { ...newUnits[index], [field]: value };
+
+        // If setting this unit as base unit, unset all others
+        if (field === 'is_base_unit' && value === true) {
+            newUnits.forEach((u, i) => {
+                if (i !== index) u.is_base_unit = false;
+            });
+            // Base unit holds the stock
+            newUnits[index].stock = data.stock || 0;
+        }
+
+        setUnits(newUnits);
+    };
+
+    const toggleMultipleUnits = (checked: boolean) => {
+        setHasMultipleUnits(checked);
+        setData('has_multiple_units', checked);
+
+        if (checked) {
+            // Switching to multi-unit mode - initialize with base unit
+            if (units.length === 0) {
+                setUnits([{
+                    name: data.unit || 'pcs',
+                    sku: data.sku || generateSKU(data.name || 'PROD', 'PCS', 0),
+                    barcode: data.barcode || null,
+                    price: data.price || 0,
+                    cost_price: data.cost_price || 0,
+                    stock: data.stock || 0,
+                    conversion_factor: 1,
+                    is_base_unit: true,
+                }]);
+            }
+            setIsUnitsExpanded(true);
+        } else {
+            // Switching to single unit mode - update product fields from base unit
+            const baseUnit = units.find(u => u.is_base_unit) || units[0];
+            if (baseUnit) {
+                setData('unit', baseUnit.name);
+                setData('price', baseUnit.price);
+                setData('cost_price', baseUnit.cost_price);
+                setData('stock', baseUnit.stock);
+            }
+            setUnits([]);
+        }
+    };
+
+    const generateMainSKU = () => {
+        const newSku = generateSKU(data.name || 'PROD', data.unit || 'PCS', 0);
+        setData('sku', newSku);
+    };
+
+    const validateSKU = (value: string) => {
+        if (!value) {
+            setSkuValidation({ valid: true });
+            return;
+        }
+        // Simple validation - in real app, check against database
+        if (value.length < 3) {
+            setSkuValidation({ valid: false, message: 'SKU minimal 3 karakter' });
+        } else {
+            setSkuValidation({ valid: true });
+        }
+    };
+
+    const validateBarcode = (value: string) => {
+        if (!value) {
+            setBarcodeValidation({ valid: true });
+            return;
+        }
+        // Simple validation - in real app, check against database
+        if (value.length < 8) {
+            setBarcodeValidation({ valid: false, message: 'Barcode minimal 8 karakter' });
+        } else {
+            setBarcodeValidation({ valid: true });
+        }
+    };
+
+    const handleNameChange = (value: string) => {
+        setData('name', value);
+        // Auto-generate SKU if name is provided and SKU is empty
+        if (value && !data.sku) {
+            const newSku = generateSKU(value, data.unit || 'PCS', 0);
+            setData('sku', newSku);
+        }
+    };
+
+    const handleSaveAndAddAnother = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        const formData = new FormData();
+        Object.keys(data).forEach((key) => {
+            const value = data[key as keyof typeof data];
+
+            if (key === 'has_variants' || key === 'has_multiple_units') {
+                formData.append(key, value ? '1' : '0');
+            } else {
+                formData.append(key, value.toString());
+            }
+        });
+
+        if (hasMultipleUnits && units.length > 0) {
+            formData.append('units', JSON.stringify(units));
+        }
+
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+
+        formData.append('redirect_to_create', '1');
+
+        router.post('/products', formData);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={isEdit ? 'Edit Produk' : 'Tambah Produk'} />
-            <div className="mx-auto max-w-4xl space-y-6 p-6">
+            <div className="mx-auto max-w-5xl space-y-6 p-6">
                 <div className="flex items-center gap-4">
                     <Link href="/products">
                         <Button variant="ghost" size="icon" className="size-10 rounded-full">
@@ -137,223 +337,134 @@ export default function ProductForm({ product, categories }: Props) {
                     <h1 className="text-3xl font-bold tracking-tight">{isEdit ? 'Ubah Data Produk' : 'Input Produk Baru'}</h1>
                 </div>
 
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="space-y-6 md:col-span-2">
+                <ProductTypeSelector
+                    hasVariants={hasVariants}
+                    hasMultipleUnits={hasMultipleUnits}
+                    onSimpleSelect={() => {
+                        setHasVariants(false);
+                        setHasMultipleUnits(false);
+                        setData('has_variants', false);
+                        setData('has_multiple_units', false);
+                    }}
+                    onMultiUnitSelect={() => {
+                        if (!hasVariants) toggleMultipleUnits(true);
+                    }}
+                    onVariantSelect={() => {
+                        setHasVariants(true);
+                        setData('has_variants', true);
+                        setHasMultipleUnits(false);
+                        setData('has_multiple_units', false);
+                    }}
+                />
+
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="space-y-6 lg:col-span-2">
                         <Card className="shadow-sm">
                             <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                    <span className="flex items-center gap-2">
-                                        <Package className="h-5 w-5" />
-                                        Detail Produk
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                        <Label htmlFor="has_variants" className="text-sm font-medium">
-                                            Aktifkan Variants
-                                        </Label>
-                                        <Switch
-                                            id="has_variants"
-                                            checked={hasVariants}
-                                            onCheckedChange={(checked: boolean) => {
-                                                setHasVariants(checked);
-                                                setData('has_variants', checked);
-                                            }}
-                                        />
-                                    </div>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Package className="h-5 w-5" />
+                                    Detail Produk
                                 </CardTitle>
-                                <CardDescription>
-                                    {hasVariants
-                                        ? 'Produk akan memiliki variasi dengan harga dan stok terpisah'
-                                        : 'Produk tanpa variasi (harga dan stok tunggal)'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Nama Produk</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Contoh: Buku Sidu 38 Lembar"
-                                        value={data.name}
-                                        onChange={(e) => setData('name', e.target.value)}
-                                    />
-                                    <InputError message={errors.name} />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
-                                        <Input
-                                            id="sku"
-                                            placeholder="Dikosongkan untuk auto-gen"
-                                            value={data.sku}
-                                            onChange={(e) => setData('sku', e.target.value)}
-                                        />
-                                        <InputError message={errors.sku} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="barcode">Barcode (Opsional)</Label>
-                                        <Input
-                                            id="barcode"
-                                            placeholder="Scan atau ketik barcode"
-                                            value={data.barcode}
-                                            onChange={(e) => setData('barcode', e.target.value)}
-                                        />
-                                        <InputError message={errors.barcode} />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="category_id">Kategori</Label>
-                                        <Select value={data.category_id} onValueChange={(value) => setData('category_id', value)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih Kategori" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map((cat) => (
-                                                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                                                        {cat.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError message={errors.category_id} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="unit">Satuan Jual</Label>
-                                        <Input
-                                            id="unit"
-                                            placeholder="pcs, rim, pack, dll"
-                                            value={data.unit}
-                                            onChange={(e) => setData('unit', e.target.value)}
-                                        />
-                                        <InputError message={errors.unit} />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle>Gambar Produk</CardTitle>
-                                <CardDescription>Upload gambar produk untuk tampilan yang lebih menarik.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ImageUpload
-                                    value={imageFile ? URL.createObjectURL(imageFile) : product?.original_url || null}
-                                    onChange={handleImageChange}
-                                    onRemove={handleImageRemove}
-                                    disabled={processing}
-                                    className="max-w-xs"
+                                <ProductBasicInfo
+                                    name={data.name}
+                                    sku={data.sku}
+                                    barcode={data.barcode}
+                                    categoryId={data.category_id}
+                                    unit={data.unit}
+                                    hasMultipleUnits={hasMultipleUnits}
+                                    hasVariants={hasVariants}
+                                    categories={categories}
+                                    skuValidation={skuValidation}
+                                    barcodeValidation={barcodeValidation}
+                                    customUnit={customUnit}
+                                    commonUnits={commonUnits}
+                                    errors={errors}
+                                    onNameChange={handleNameChange}
+                                    onSkuChange={(value) => {
+                                        setData('sku', value);
+                                        validateSKU(value);
+                                    }}
+                                    onBarcodeChange={(value) => {
+                                        setData('barcode', value);
+                                        validateBarcode(value);
+                                    }}
+                                    onCategoryIdChange={(value) => setData('category_id', value)}
+                                    onUnitChange={(value) => {
+                                        if (value === 'custom') {
+                                            setData('unit', customUnit);
+                                        } else {
+                                            setData('unit', value);
+                                        }
+                                    }}
+                                    onCustomUnitChange={(value) => {
+                                        setCustomUnit(value);
+                                        setData('unit', value);
+                                    }}
+                                    onGenerateSku={generateMainSKU}
                                 />
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle>Keuangan & Stok</CardTitle>
-                                <CardDescription>
-                                    {hasVariants
-                                        ? 'Harga dan stok diatur per variant di halaman variants'
-                                        : 'Atur harga beli, harga jual, dan jumlah stok saat ini.'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${hasVariants ? 'pointer-events-none opacity-50' : ''}`}>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="cost_price">Harga Modal</Label>
-                                    <div className="relative">
-                                        <span className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 text-xs">Rp</span>
-                                        <Input
-                                            id="cost_price"
-                                            type="number"
-                                            className="pl-8"
-                                            value={data.cost_price}
-                                            onChange={(e) => setData('cost_price', Number(e.target.value))}
-                                            disabled={hasVariants}
-                                        />
-                                    </div>
-                                    <InputError message={errors.cost_price} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="price">Harga Jual</Label>
-                                    <div className="relative">
-                                        <span className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold">Rp</span>
-                                        <Input
-                                            id="price"
-                                            type="number"
-                                            className="pl-8 font-bold text-emerald-600"
-                                            value={data.price}
-                                            onChange={(e) => setData('price', Number(e.target.value))}
-                                            disabled={hasVariants}
-                                        />
-                                    </div>
-                                    <InputError message={errors.price} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="stock">Stok Awal</Label>
-                                    <Input
-                                        id="stock"
-                                        type="number"
-                                        value={data.stock}
-                                        onChange={(e) => setData('stock', Number(e.target.value))}
-                                        disabled={hasVariants}
-                                    />
-                                    <InputError message={errors.stock} />
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {hasMultipleUnits && !hasVariants && (
+                            <MultiUnitTable
+                                units={units}
+                                isExpanded={isUnitsExpanded}
+                                onToggleExpanded={() => setIsUnitsExpanded(!isUnitsExpanded)}
+                                onAddUnit={addUnit}
+                                onRemoveUnit={removeUnit}
+                                onUpdateUnit={updateUnit}
+                                customUnit={customUnit}
+                                commonUnits={commonUnits}
+                                onCustomUnitChange={setCustomUnit}
+                            />
+                        )}
+
+                        <ProductImageUpload
+                            imageUrl={imageFile ? URL.createObjectURL(imageFile) : product?.original_url || null}
+                            onImageChange={handleImageChange}
+                            onImageRemove={handleImageRemove}
+                            disabled={processing}
+                            isExpanded={isImageExpanded}
+                            onToggleExpanded={() => setIsImageExpanded(!isImageExpanded)}
+                        />
+
+                        <ProductFinanceStock
+                            costPrice={data.cost_price}
+                            price={data.price}
+                            stock={data.stock}
+                            hasVariants={hasVariants}
+                            hasMultipleUnits={hasMultipleUnits}
+                            isExpanded={isFinanceExpanded}
+                            onToggleExpanded={() => setIsFinanceExpanded(!isFinanceExpanded)}
+                            onCostPriceChange={(value) => setData('cost_price', value)}
+                            onPriceChange={(value) => setData('price', value)}
+                            onStockChange={(value) => setData('stock', value)}
+                            errors={errors}
+                        />
                     </div>
 
                     <div className="space-y-6">
-                        <Card className="bg-primary/5 border-primary/20">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <Save className="h-5 w-5" />
-                                    Simpan Produk
-                                </CardTitle>
-                                <CardDescription>Pilih aksi yang ingin Anda lakukan dengan produk ini</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <Button type="submit" disabled={processing} className="w-full">
-                                    {processing ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Menyimpan...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Simpan Produk
-                                        </>
-                                    )}
-                                </Button>
+                        <ProductSaveActions
+                            processing={processing}
+                            isEdit={isEdit}
+                            hasVariants={hasVariants}
+                            productId={product?.id}
+                            onSave={handleSubmit}
+                            onSaveAndInputVariants={handleSaveAndInputVariants}
+                            onSaveAndAddAnother={handleSaveAndAddAnother}
+                            onManageVariants={() => router.visit(`/products/${product?.id}/variants`)}
+                        />
 
-                                {hasVariants && !isEdit && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={processing}
-                                        className="w-full"
-                                        onClick={handleSaveAndInputVariants}
-                                    >
-                                        <PackagePlus className="mr-2 h-4 w-4" />
-                                        Simpan dan Input Varian
-                                    </Button>
-                                )}
-
-                                {hasVariants && isEdit && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={processing}
-                                        className="w-full"
-                                        onClick={() => router.visit(`/products/${product?.id}/variants`)}
-                                    >
-                                        <Package className="mr-2 h-4 w-4" />
-                                        Kelola Varian
-                                    </Button>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <ProductPreview
+                            name={data.name}
+                            sku={data.sku}
+                            hasVariants={hasVariants}
+                            hasMultipleUnits={hasMultipleUnits}
+                            price={data.price}
+                            stock={data.stock}
+                        />
                     </div>
                 </form>
             </div>
