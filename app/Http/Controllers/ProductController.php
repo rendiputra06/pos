@@ -55,7 +55,7 @@ class ProductController extends Controller
                 $query->where('has_variants', $request->has_variants);
             })
             ->latest()
-            ->paginate(10)
+            ->paginate($request->get('per_page', 10))
             ->withQueryString();
 
         return Inertia::render('products/Index', [
@@ -96,11 +96,16 @@ class ProductController extends Controller
         if ($request->boolean('has_multiple_units')) {
             $rules['units'] = 'required|array|min:1';
             $rules['units.*.name'] = 'required|string|max:30';
-            $rules['units.*.sku'] = 'required|string|max:50|unique:product_units,sku';
             $rules['units.*.price'] = 'required|numeric|min:0';
             $rules['units.*.cost_price'] = 'required|numeric|min:0';
             $rules['units.*.stock'] = 'required|integer|min:0';
             $rules['units.*.conversion_factor'] = 'required|numeric|min:0.01';
+            
+            // Dynamic SKU validation for each unit
+            $units = $request->input('units', []);
+            foreach ($units as $index => $unit) {
+                $rules["units.{$index}.sku"] = 'required|string|max:50|unique:product_units,sku';
+            }
         }
 
         $validated = $request->validate($rules);
@@ -177,11 +182,22 @@ class ProductController extends Controller
         if ($request->boolean('has_multiple_units')) {
             $rules['units'] = 'required|array|min:1';
             $rules['units.*.name'] = 'required|string|max:30';
-            $rules['units.*.sku'] = 'required|string|max:50';
             $rules['units.*.price'] = 'required|numeric|min:0';
             $rules['units.*.cost_price'] = 'required|numeric|min:0';
             $rules['units.*.stock'] = 'required|integer|min:0';
             $rules['units.*.conversion_factor'] = 'required|numeric|min:0.01';
+            
+            // SKU validation: unique for new units, ignore for existing units
+            $units = $request->input('units', []);
+            foreach ($units as $index => $unit) {
+                if (isset($unit['id'])) {
+                    // Existing unit - validate unique except itself
+                    $rules["units.{$index}.sku"] = 'required|string|max:50|unique:product_units,sku,' . $unit['id'];
+                } else {
+                    // New unit - must be globally unique
+                    $rules["units.{$index}.sku"] = 'required|string|max:50|unique:product_units,sku';
+                }
+            }
         }
 
         $validated = $request->validate($rules);
@@ -314,6 +330,8 @@ class ProductController extends Controller
 
             $errors = $import->getErrors();
             $successCount = $import->getSuccessCount();
+            $updatedCount = $import->getUpdatedCount();
+            $skippedCount = $import->getSkippedCount();
             $processedCount = $import->getProcessedCount();
             $rowCount = $import->getRowCount();
 
@@ -322,13 +340,28 @@ class ProductController extends Controller
                 'total_rows' => $rowCount,
                 'processed' => $processedCount,
                 'success' => $successCount,
+                'updated' => $updatedCount,
+                'skipped' => $skippedCount,
                 'errors' => count($errors)
             ]);
 
-            if (empty($errors) && $successCount > 0) {
-                return back()->with('success', "✅ Berhasil mengimport {$successCount} produk dari {$rowCount} baris!");
-            } elseif ($successCount > 0) {
-                $message = "⚠️ Berhasil mengimport {$successCount} dari {$rowCount} produk. " . count($errors) . " produk gagal.";
+            // Build summary message
+            $summaryParts = [];
+            if ($successCount > 0) {
+                $summaryParts[] = "{$successCount} dibuat";
+            }
+            if ($updatedCount > 0) {
+                $summaryParts[] = "{$updatedCount} diperbarui";
+            }
+            if ($skippedCount > 0) {
+                $summaryParts[] = "{$skippedCount} dilewati";
+            }
+
+            if (empty($errors) && ($successCount > 0 || $updatedCount > 0)) {
+                $message = "✅ Import selesai! " . implode(', ', $summaryParts) . " dari {$rowCount} baris.";
+                return back()->with('success', $message);
+            } elseif ($successCount > 0 || $updatedCount > 0) {
+                $message = "⚠️ Import selesai dengan catatan: " . implode(', ', $summaryParts) . ". " . count($errors) . " produk gagal.";
 
                 return back()
                     ->with('warning', $message)
@@ -337,6 +370,8 @@ class ProductController extends Controller
                         'total' => $rowCount,
                         'processed' => $processedCount,
                         'success' => $successCount,
+                        'updated' => $updatedCount,
+                        'skipped' => $skippedCount,
                         'errors' => count($errors)
                     ]);
             } else {
@@ -387,6 +422,8 @@ class ProductController extends Controller
                 'stok' => 50,
                 'satuan' => 'pcs',
                 'has_variants' => 'NO',
+                'has_multiple_units' => 'NO',
+                'action' => 'CREATE',
                 'deskripsi' => 'Buku tulis 38 lembar berkualitas tinggi',
             ],
             [
@@ -399,7 +436,51 @@ class ProductController extends Controller
                 'stok' => 100,
                 'satuan' => 'pcs',
                 'has_variants' => 'YES',
-                'deskripsi' => 'Pulpen smooth dengan tinta berkualitas',
+                'has_multiple_units' => 'NO',
+                'action' => 'CREATE',
+                'deskripsi' => 'Pulpen smooth dengan tinta berkualitas - akan buat variant',
+            ],
+            [
+                'nama_produk' => 'Contoh: Kertas A4 1 Box',
+                'sku' => 'PROD-PAPER-BOX',
+                'barcode' => '1112223334445',
+                'kategori' => 'Kertas',
+                'harga_modal' => 45000,
+                'harga_jual' => 50000,
+                'stok' => 20,
+                'satuan' => 'box',
+                'has_variants' => 'NO',
+                'has_multiple_units' => 'YES',
+                'action' => 'CREATE',
+                'deskripsi' => 'Multi-unit product: bisa jual per box atau per rim',
+            ],
+            [
+                'nama_produk' => 'Contoh: Update Produk Existing',
+                'sku' => 'PROD-EXISTING',
+                'barcode' => '9998887776665',
+                'kategori' => 'Alat Tulis',
+                'harga_modal' => 3000,
+                'harga_jual' => 5000,
+                'stok' => 25,
+                'satuan' => 'pcs',
+                'has_variants' => 'NO',
+                'has_multiple_units' => 'NO',
+                'action' => 'UPDATE',
+                'deskripsi' => 'Gunakan action=UPDATE untuk memperbarui produk yang sudah ada',
+            ],
+            [
+                'nama_produk' => 'Contoh: Skip Jika Sudah Ada',
+                'sku' => 'PROD-SKIP',
+                'barcode' => '5554443332221',
+                'kategori' => 'Alat Tulis',
+                'harga_modal' => 10000,
+                'harga_jual' => 15000,
+                'stok' => 30,
+                'satuan' => 'pcs',
+                'has_variants' => 'NO',
+                'has_multiple_units' => 'NO',
+                'action' => 'SKIP',
+                'deskripsi' => 'Gunakan action=SKIP untuk melewati jika produk sudah ada',
             ],
         ]);
 
@@ -428,6 +509,8 @@ class ProductController extends Controller
                     'stok',
                     'satuan',
                     'has_variants',
+                    'has_multiple_units',
+                    'action',
                     'deskripsi',
                 ];
             }
@@ -449,7 +532,7 @@ class ProductController extends Controller
                             'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
                         ],
                     ],
-                    'A1:J1' => [
+                    'A1:L1' => [
                         'borders' => [
                             'allBorders' => [
                                 'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,

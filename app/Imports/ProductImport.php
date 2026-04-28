@@ -13,13 +13,17 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProductImport implements ToCollection, WithHeadingRow, WithValidation, WithBatchInserts, WithChunkReading
 {
     protected $errors = [];
     protected $successCount = 0;
+    protected $updatedCount = 0;
+    protected $skippedCount = 0;
     protected $rowCount = 0;
     protected $processedData = [];
+    protected $productsToUpdate = [];
 
     public function collection(Collection $rows)
     {
@@ -54,10 +58,18 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
             }
         }
 
-        // Batch insert successful products
-        if (!empty($this->processedData)) {
-            Product::insert($this->processedData);
-        }
+        // Batch insert successful products dalam transaction
+        DB::transaction(function() {
+            // Insert new products
+            if (!empty($this->processedData)) {
+                Product::insert($this->processedData);
+            }
+
+            // Update existing products
+            foreach ($this->productsToUpdate as $updateData) {
+                $updateData['product']->update($updateData['data']);
+            }
+        });
 
         return collect($this->processedData);
     }
@@ -77,22 +89,61 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
         // Handle SKU - generate if empty
         $sku = !empty($row['sku']) ? trim($row['sku']) : 'PROD-' . strtoupper(Str::random(8));
 
-        // Check for duplicate SKU (only if SKU is provided in Excel)
+        // Handle action: CREATE (default), UPDATE, SKIP
+        $action = strtolower($row['action'] ?? 'create');
+
+        // Check for existing product by SKU
+        $existingProduct = null;
         if (!empty($row['sku'])) {
             $existingProduct = Product::where('sku', $sku)->first();
-            if ($existingProduct) {
-                throw new \Exception("SKU '{$sku}' sudah digunakan oleh produk lain");
-            }
         }
 
-        // Check for duplicate product name (optional - more strict)
+        // Check for existing product by name in same category
         $existingByName = Product::where('name', $row['nama_produk'])
             ->where('category_id', $category->id)
             ->first();
-        if ($existingByName) {
-            throw new \Exception("Produk '{$row['nama_produk']}' sudah ada dalam kategori ini");
+
+        // Handle SKIP action
+        if ($action === 'skip') {
+            if ($existingProduct || $existingByName) {
+                $this->skippedCount++;
+                return null; // Skip this row
+            }
         }
 
+        // Handle UPDATE action
+        if ($action === 'update' && $existingProduct) {
+            $this->updatedCount++;
+            $this->productsToUpdate[] = [
+                'product' => $existingProduct,
+                'data' => $this->buildProductData($row, $category->id, $sku, true)
+            ];
+            return null; // Will be handled in transaction
+        }
+
+        // For CREATE action: check for duplicates
+        if ($action === 'create' || empty($action)) {
+            if ($existingProduct) {
+                throw new \Exception("SKU '{$sku}' sudah digunakan oleh produk lain. Gunakan action=UPDATE untuk memperbarui.");
+            }
+            if ($existingByName) {
+                throw new \Exception("Produk '{$row['nama_produk']}' sudah ada dalam kategori ini.");
+            }
+        }
+
+        // Clean and format data
+        $costPrice = $this->cleanNumber($row['harga_modal']);
+        $price = $this->cleanNumber($row['harga_jual']);
+        $stock = (int) $row['stok'];
+
+        return $this->buildProductData($row, $category->id, $sku, false);
+    }
+
+    /**
+     * Build product data array for insert or update
+     */
+    protected function buildProductData(array $row, int $categoryId, string $sku, bool $isUpdate): array
+    {
         // Clean and format data
         $costPrice = $this->cleanNumber($row['harga_modal']);
         $price = $this->cleanNumber($row['harga_jual']);
@@ -104,8 +155,14 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
             $hasVariants = in_array(strtolower($row['has_variants']), ['yes', 'y', 'true', '1']) ? 1 : 0;
         }
 
-        return [
-            'category_id' => $category->id,
+        // Handle has_multiple_units field (optional)
+        $hasMultipleUnits = 0;
+        if (isset($row['has_multiple_units'])) {
+            $hasMultipleUnits = in_array(strtolower($row['has_multiple_units']), ['yes', 'y', 'true', '1']) ? 1 : 0;
+        }
+
+        $data = [
+            'category_id' => $categoryId,
             'name' => trim($row['nama_produk']),
             'sku' => $sku,
             'barcode' => !empty($row['barcode']) ? trim($row['barcode']) : null,
@@ -114,10 +171,18 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
             'stock' => $stock,
             'unit' => !empty($row['satuan']) ? trim($row['satuan']) : 'pcs',
             'has_variants' => $hasVariants,
+            'has_multiple_units' => $hasMultipleUnits,
             'description' => isset($row['deskripsi']) ? trim($row['deskripsi']) : null,
-            'created_at' => now(),
-            'updated_at' => now(),
         ];
+
+        if ($isUpdate) {
+            $data['updated_at'] = now();
+        } else {
+            $data['created_at'] = now();
+            $data['updated_at'] = now();
+        }
+
+        return $data;
     }
 
     public function rules(): array
@@ -126,7 +191,15 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
             'nama_produk' => 'required|string|max:255',
             'sku' => 'nullable|string|max:50',
             'barcode' => 'nullable|string|max:50',
-            'kategori' => 'required|string|exists:categories,name',
+            'kategori' => [
+                'required',
+                'string',
+                Rule::exists('categories', 'name')->where(function ($query) {
+                    $query->where('type', 'product');
+                })
+            ],
+            'action' => 'nullable|string|in:create,update,skip,CREATE,UPDATE,SKIP',
+            'has_multiple_units' => 'nullable|string|in:yes,no,y,n,true,false,1,0,YES,NO,Y,N,TRUE,FALSE',
             'harga_modal' => 'required|numeric|min:0',
             'harga_jual' => 'required|numeric|min:0',
             'stok' => 'required|integer|min:0',
@@ -150,6 +223,9 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
             'stok.integer' => 'Stok harus berupa angka bulat',
             'satuan.required' => 'Satuan wajib diisi',
             'has_variants.in' => 'Has variants harus YES/NO/Y/N/TRUE/FALSE/1/0',
+            'action.in' => 'Action harus CREATE/UPDATE/SKIP',
+            'has_multiple_units.in' => 'Has multiple units harus YES/NO/Y/N/TRUE/FALSE/1/0',
+            'kategori.exists' => 'Kategori tidak ditemukan atau bukan kategori produk',
         ];
     }
 
@@ -181,6 +257,16 @@ class ProductImport implements ToCollection, WithHeadingRow, WithValidation, Wit
     public function getProcessedCount()
     {
         return count($this->processedData);
+    }
+
+    public function getUpdatedCount()
+    {
+        return $this->updatedCount;
+    }
+
+    public function getSkippedCount()
+    {
+        return $this->skippedCount;
     }
 
     private function cleanNumber($value)

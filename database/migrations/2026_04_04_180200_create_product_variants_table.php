@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('combination_hash')->unique(); // MD5 hash of combination
             $table->integer('display_order')->default(0);
             $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index(['product_id', 'display_order']);

@@ -23,6 +23,8 @@ interface ImportStats {
     total: number;
     processed: number;
     success: number;
+    updated: number;
+    skipped: number;
     errors: number;
 }
 
@@ -210,7 +212,13 @@ export default function ImportModal({ isOpen, onClose, onImportComplete }: Impor
                                         <span className="font-medium">Diproses:</span> {importStats.processed}
                                     </div>
                                     <div>
-                                        <span className="font-medium">Berhasil:</span> {importStats.success}
+                                        <span className="font-medium">Dibuat:</span> {importStats.success}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium">Diperbarui:</span> {importStats.updated || 0}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium">Dilewati:</span> {importStats.skipped || 0}
                                     </div>
                                     <div>
                                         <span className="font-medium">Gagal:</span> {importStats.errors}

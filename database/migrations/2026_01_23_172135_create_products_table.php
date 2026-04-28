@@ -22,6 +22,9 @@ return new class extends Migration
             $table->integer('stock')->default(0);
             $table->string('unit')->default('pcs');
             $table->string('image')->nullable();
+            $table->boolean('has_variants')->default(false);
+            $table->boolean('has_multiple_units')->default(false);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

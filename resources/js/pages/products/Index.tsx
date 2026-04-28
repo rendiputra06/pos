@@ -48,6 +48,7 @@ interface Product {
     name: string;
     sku: string;
     price: number;
+    cost_price: number;
     stock: number;
     unit: string;
     has_variants: boolean;
@@ -360,6 +361,7 @@ export default function ProductIndex({ products, categories, filters }: Props) {
                                     <th className="px-6 py-4 font-semibold">Produk</th>
                                     <th className="px-6 py-4 font-semibold">Kategori</th>
                                     <th className="px-6 py-4 text-center font-semibold">Stok</th>
+                                    <th className="px-6 py-4 text-right font-semibold">Harga Modal</th>
                                     <th className="px-6 py-4 text-right font-semibold">Harga Jual</th>
                                     <th className="px-6 py-4 text-right font-semibold">Aksi</th>
                                 </tr>
@@ -367,7 +369,7 @@ export default function ProductIndex({ products, categories, filters }: Props) {
                             <tbody className="divide-y">
                                 {products.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="text-muted-foreground px-6 py-12 text-center italic">
+                                        <td colSpan={6} className="text-muted-foreground px-6 py-12 text-center italic">
                                             Tidak ada produk ditemukan.
                                         </td>
                                     </tr>
@@ -413,6 +415,11 @@ export default function ProductIndex({ products, categories, filters }: Props) {
                                                 </Badge>
                                             </td>
                                             <td className="px-6 py-4 text-center">{renderProductStock(product)}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="text-muted-foreground text-sm">
+                                                    {formatCurrency(product.cost_price || 0)}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 text-right">{renderProductPrice(product)}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-1">
